@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"/>
+    <title>{{ title }}</title>
+</head>
+<body>
+<div class="page">
+          <div class="header"><a href="{{ url_for('index') }}">Graph Visualization App</a></div>
+          <div class="left">
+              <ul>
+                  <li>
+                      <a href="{{ url_for('index') }}">Home</a>
+                  </li>
+              </ul>
+              {% block links %}{% endblock %}
+          </div>
+          <div class="center">
+              {% block content %}{% endblock %}
+          </div>
+          <div class="footer">Projekat za vizualizaciju grafova iz predmeta Softverski obrasci i komponente</div>
+</div>
+</body>
+</html>
