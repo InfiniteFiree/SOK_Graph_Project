@@ -1,2 +1,4 @@
 .idea
-SOK_Graph_Project/flask/__pycache__/app.cpython-314.pyc
+SOK_Graph_Project/flask/__pycache__
+SOK_Graph_Project/flask/venv
+SOK_Graph_Project/venv
