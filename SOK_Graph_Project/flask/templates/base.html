@@ -2,24 +2,48 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"/>
-    <title>{{ title }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>{{ title if title else "Graph Explorer" }}</title>
 </head>
 <body>
-<div class="page">
-          <div class="header"><a href="{{ url_for('index') }}">Graph Visualization App</a></div>
-          <div class="left">
-              <ul>
-                  <li>
-                      <a href="{{ url_for('index') }}">Home</a>
-                  </li>
-              </ul>
-              {% block links %}{% endblock %}
-          </div>
-          <div class="center">
-              {% block content %}{% endblock %}
-          </div>
-          <div class="footer">Projekat za vizualizaciju grafova iz predmeta Softverski obrasci i komponente</div>
+
+<div class="app-container">
+
+    <!-- HEADER -->
+    <header class="header">
+        <h2>Graph Visualization Platform</h2>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <div class="content">
+
+        <!-- TREE VIEW -->
+        <div class="tree-view">
+            <h3>Tree View</h3>
+            {% block tree %}{% endblock %}
+        </div>
+
+        <!-- MAIN VIEW -->
+        <div class="main-view">
+            <h3>Main View</h3>
+            {% block content %}{% endblock %}
+        </div>
+
+        <!-- BIRD VIEW -->
+        <div class="bird-view">
+            <h3>Bird View</h3>
+            {% block bird %}{% endblock %}
+        </div>
+
+    </div>
+
+    <!-- CLI -->
+    <div class="cli">
+        <h3>CLI</h3>
+        <textarea placeholder="Enter command..."></textarea>
+    </div>
+
 </div>
+
 </body>
 </html>
