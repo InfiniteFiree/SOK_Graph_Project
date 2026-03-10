@@ -1,10 +1,19 @@
+import importlib
 import sys
 import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
+bird_view_path = os.path.join(project_root, 'platform', 'service', 'use_cases', 'bird_view.py')
+
+bird_spec = importlib.util.spec_from_file_location("custom_bird_view", bird_view_path)
+bird_module = importlib.util.module_from_spec(bird_spec)
+bird_spec.loader.exec_module(bird_module)
+BirdView = bird_module.BirdView
+
 from block_visualizer.block_visualizer import BlockVisualizer
-from platform.service.use_cases.bird_view import BirdView
 from flask import Flask, render_template, url_for, request
 from csv_data_source.csv_db.csv_db import CsvDb
 
