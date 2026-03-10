@@ -1,19 +1,13 @@
 {% extends "base.html" %}
 
 {% block tree %}
-<ul>
-    <li>+ Node 1</li>
-    <li>+ Node 2</li>
-</ul>
+    {% include "tree_view/graph_tree_view_body.html" %}
 {% endblock %}
 
 {% block content %}
-<script src="https://d3js.org/d3.v7.min.js"></script>
 <div class="toolbar">
-    <!-- File search -->
     <input type="text" id="file-search" placeholder="Search nodes/files..." oninput="applySearch()">
 
-    <!-- Query fields -->
     <input type="text" class="query-input" placeholder="Node ID" data-operator="=">
     <select class="query-operator">
         <option value="=">=</option>
@@ -31,10 +25,26 @@
     {{ graph_html|safe }}
 </div>
 
+<script src="https://d3js.org/d3.v7.min.js"></script>
+
+<script>
+    const width = 800;
+    const height = 600;
+
+    const svg = d3.select("#graph-container")
+        .append("svg")
+        .attr("width", "100%")
+        .attr("height", height);
+
+    const simulation = d3.forceSimulation()
+        .force("link", d3.forceLink().id(d => d.id).distance(150))
+        .force("charge", d3.forceManyBody().strength(-500))
+        .force("center", d3.forceCenter(width / 2, height / 2));
+</script>
 {% endblock %}
 
 {% block bird %}
-<div id="bird-canvas">
+<div class="bird-canvas">
     {{ bird_view|safe }}
 </div>
 {% endblock %}
