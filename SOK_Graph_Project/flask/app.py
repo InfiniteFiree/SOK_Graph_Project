@@ -4,6 +4,9 @@ import importlib.util
 
 from jinja2 import ChoiceLoader, FileSystemLoader
 
+from jinja2 import ChoiceLoader, FileSystemLoader
+from flask import Flask, render_template, request
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -32,6 +35,7 @@ app.jinja_loader = ChoiceLoader([
 def index():
     mode = request.args.get("mode", "separate_files")
     dataset = request.args.get("dataset", "acyclic")
+    user_choice = request.args.get("type", "simple")  # "simple" or "block"
 
     base_dir = os.path.abspath(
         os.path.join(project_root, 'csv_data_source', 'csv_data')
@@ -45,11 +49,10 @@ def index():
         )
     else:
         nodes_path = os.path.join(base_dir, "nodes.csv")
-
-        if dataset == "cyclic":
-            edges_path = os.path.join(base_dir, "edges_cyclic.csv")
-        else:
-            edges_path = os.path.join(base_dir, "edges.csv")
+        edges_path = os.path.join(
+            base_dir,
+            "edges_cyclic.csv" if dataset == "cyclic" else "edges.csv"
+        )
 
         csv_db = CsvDb(
             mode="separate_files",
@@ -82,7 +85,10 @@ def index():
         title=app.config['APP_NAME'],
         graph_html=graph_html,
         bird_view=bird_view_html,
-        tree_view_html=tree_view_html
+        tree_view_html=tree_view_html,
+        selected_visualizer=user_choice,
+        selected_mode=mode,
+        selected_dataset=dataset
     )
 
 
