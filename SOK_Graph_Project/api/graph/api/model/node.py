@@ -1,5 +1,7 @@
 
+from dataclasses import dataclass
 
+@dataclass
 class Node:
 
     def __init__(self, data=None, index=None):

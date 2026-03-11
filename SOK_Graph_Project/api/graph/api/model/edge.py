@@ -1,7 +1,8 @@
 
 from .node import Node
+from dataclasses import dataclass
 
-
+@dataclass
 class Edge:
 
     def __init__(self, node1=None, node2=None):

@@ -1,7 +1,9 @@
 
 from .edge import Edge
 from .node import Node
+from dataclasses import dataclass
 
+@dataclass
 class Graph:
 
     def __init__(self, nodes=None, edges=None, cyclic=None, directed=None):
@@ -153,3 +155,32 @@ class Graph:
             raise TypeError("edge must be of type Edge")
 
         return edge
+
+    def toDict(self):
+        return {
+            "nodes": [
+                {
+                    "index": node.index,
+                    "data": node.data,
+                }
+                for node in self.nodes
+            ],
+            "edges": [
+                {
+                    "node1_index": edge.node1.index if edge.node1 is not None else None,
+                    "node2_index": edge.node2.index if edge.node2 is not None else None,
+                }
+                for edge in self.edges
+            ],
+            "cyclic": self.cyclic,
+            "directed": self.directed,
+        }
+
+    def __repr__(self):
+        return (
+            f"Graph(nodes={len(self.nodes)}, edges={len(self.edges)}, "
+            f"cyclic={self.cyclic}, directed={self.directed})"
+        )
+
+    def __str__(self):
+        return str(self.toDict())
