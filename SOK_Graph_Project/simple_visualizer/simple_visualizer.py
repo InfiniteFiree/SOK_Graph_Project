@@ -290,6 +290,29 @@ class SimpleVisualizer(VisualizationPlugin):
         }});
     }}
 
+    function focusNode(nodeId) {{
+        const targetNode = graphData.nodes.find(n => String(n.id) === String(nodeId));
+        if (!targetNode) return;
+
+        const currentTransform = d3.zoomTransform(svg.node());
+        const currentScale = currentTransform.k || 1;
+
+        const targetX = width / 2 - targetNode.x * currentScale;
+        const targetY = height / 2 - targetNode.y * currentScale;
+
+        const newTransform = d3.zoomIdentity
+            .translate(targetX, targetY)
+            .scale(currentScale);
+
+        svg.transition()
+            .duration(400)
+            .call(zoom.transform, newTransform);
+    }}
+
+    function findNodeById(nodeId) {{
+        return graphData.nodes.find(n => String(n.id) === String(nodeId)) || null;
+    }}
+
     function showNodeDetails(nodeData) {{
         const rows = Object.entries(nodeData.data || {{}})
             .map(([key, value]) => `
@@ -356,7 +379,22 @@ class SimpleVisualizer(VisualizationPlugin):
     window.addEventListener("graph-node-selected", function(event) {{
         const detail = event.detail || {{}};
         if (detail.nodeId == null) return;
+
+        if (detail.source === "{container_id}") {{
+            return;
+        }}
+
         selectNode(detail.nodeId);
+
+        if (detail.panTo) {{
+            focusNode(detail.nodeId);
+        }}
+
+        const selectedNode = findNodeById(detail.nodeId);
+        if (selectedNode && detail.source === "tree-view") {{
+            showNodeDetails(selectedNode);
+        }}
+
         notifyBirdView();
     }});
 

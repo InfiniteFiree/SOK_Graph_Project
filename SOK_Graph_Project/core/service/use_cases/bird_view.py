@@ -3,7 +3,7 @@ class BirdView:
     MINI_HEIGHT = 180
     PADDING = 12
 
-    def render(self, graph: dict) -> str:
+    def render(self) -> str:
         w = self.MINI_WIDTH
         h = self.MINI_HEIGHT
         pad = self.PADDING
