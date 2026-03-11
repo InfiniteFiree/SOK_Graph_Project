@@ -21,8 +21,13 @@
     <button onclick="applyQueries()">Apply</button>
 </div>
 
+<div class="visualizer_buttons">
+    <button onclick="window.location='/?type=block'">Block Visualizer</button>
+    <button onclick="window.location='/?type=simple'">Simple Visualizer</button>
+</div>
+
 <div id="graph-container">
-    {{ graph_html|safe }}
+    {{ graph_html | safe }}
 </div>
 
 <script src="https://d3js.org/d3.v7.min.js"></script>
@@ -31,7 +36,7 @@
     const width = 800;
     const height = 600;
 
-    const svg = d3.select("#graph-container")
+    const svg = d3.select("#{container}")
         .append("svg")
         .attr("width", "100%")
         .attr("height", height);
