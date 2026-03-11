@@ -3,8 +3,8 @@
 class Node:
 
     def __init__(self, data=None, index=None):
-        self._data = data
-        self._index = index
+        self.data = data
+        self.index = index
     
     @property
     def data(self):

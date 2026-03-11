@@ -1,5 +1,8 @@
 import sys
 import os
+import importlib.util
+
+from jinja2 import ChoiceLoader, FileSystemLoader
 
 from jinja2 import ChoiceLoader, FileSystemLoader
 from flask import Flask, render_template, request
@@ -9,8 +12,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 from core.service.use_cases.plugin_recognition import recognize_plugin
-
+from core.service.use_cases.tree_view import TreeView
 from core.service.use_cases.bird_view import BirdView
+from flask import Flask, render_template, request
 from csv_data_source.csv_db.csv_db import CsvDb
 
 
@@ -58,32 +62,30 @@ def index():
 
     # Load graph from CSV
     graph = csv_db.load()
-    app.config["GRAPH"] = graph
 
-    # Main visualization plugin
+    # Main visualization
+    app.config["GRAPH"] = graph
+    user_choice = request.args.get("type")  # simple ili block
     visualizer = recognize_plugin(user_choice)
     graph_html = visualizer.visualize(graph)
 
-    # Bird View
-    # If BirdView expects a dict instead of Graph, switch this back to:
-    # bird_view_html = bird_view.render(csv_db.to_dict(graph))
+    # Bird view
     bird_view = BirdView()
     bird_view_html = bird_view.render(graph)
 
-    # Tree View
-    # For now it stays as a placeholder / HTML adapter.
-    # Later this can consume SimpleVisualizer-generated HTML if needed.
-    # tree_view = TreeView(
-    #     html_content=None
-    # )
-    # tree_view_html = tree_view.render()
+    # Tree view placeholder for now.
+    # Later, replace html_content or html_path with output from Simple Visualizer.
+    tree_view = TreeView(
+        html_content=None,
+    )
+    tree_view_html = tree_view.render()
 
     return render_template(
         "index.html",
         title=app.config['APP_NAME'],
         graph_html=graph_html,
         bird_view=bird_view_html,
-        # tree_view_html=tree_view_html,
+        tree_view_html=tree_view_html,
         selected_visualizer=user_choice,
         selected_mode=mode,
         selected_dataset=dataset
