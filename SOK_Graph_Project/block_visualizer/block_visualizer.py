@@ -27,6 +27,9 @@ class BlockVisualizer(VisualizationPlugin):
         const width = 900;
         const height = 550;
 
+        const nodeRadius = 80; // približno pola širine rect-a
+        let selectedNodeId = null;
+
         const svg = d3.select("#graph-container")
             .append("svg")
             .attr("width", "100%")
@@ -97,6 +100,18 @@ class BlockVisualizer(VisualizationPlugin):
                     .text(line);
             });
 
+            node.on("click", (event, d) => {
+                selectedNodeId = d.id;
+                notifyBirdView();
+
+                window.dispatchEvent(new CustomEvent("graph-node-selected", {
+                    detail: {
+                        nodeId: d.id,
+                        source: "block-visualizer"
+                    }
+                }));
+            });
+
     });
 
     // Update positions on tick
@@ -109,6 +124,7 @@ class BlockVisualizer(VisualizationPlugin):
             .attr("y2", d => d.target.y);
 
         node.attr("transform", d => "translate(" + d.x + "," + d.y + ")");
+        notifyBirdView();
     });
 
     function dragstarted(event, d) {
@@ -120,17 +136,20 @@ class BlockVisualizer(VisualizationPlugin):
     function dragged(event, d) {
         d.fx = event.x;
         d.fy = event.y;
+        notifyBirdView();
     }
 
     function dragended(event, d) {
         if (!event.active) simulation.alphaTarget(0);
         d.fx = null;
         d.fy = null;
+        notifyBirdView();
     }
 
     const zoom = d3.zoom()
         .scaleExtent([0.07, 4])
         .on("zoom", (event) => g.attr("transform", event.transform));
+        notifyBirdView();
 
     svg.call(zoom);
 
@@ -186,6 +205,8 @@ class BlockVisualizer(VisualizationPlugin):
 
         window.dispatchEvent(new CustomEvent("main-view-updated"));
     }
+
+    notifyBirdView();
 
     </script>
     """
