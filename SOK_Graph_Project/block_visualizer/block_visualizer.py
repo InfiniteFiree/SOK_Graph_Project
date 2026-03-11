@@ -1,8 +1,14 @@
 import json
 from core.service.use_cases.main_view import MainView
+from api.graph.api.services.plugin import VisualizationPlugin
 
+class BlockVisualizer(VisualizationPlugin):
 
-class BlockVisualizer:
+    def name(self) -> str:
+        return "Block Visualizer"
+
+    def identifier(self) -> str:
+        return "block_visualizer"
 
     def visualize(self, graph):
 
@@ -19,7 +25,7 @@ class BlockVisualizer:
         const graphData = """ + graph_json + """;
 
         const width = 900;
-        const height = 500;
+        const height = 550;
 
         const svg = d3.select("#graph-container")
             .append("svg")
@@ -123,7 +129,7 @@ class BlockVisualizer:
     }
 
     const zoom = d3.zoom()
-        .scaleExtent([0.5, 5])
+        .scaleExtent([0.07, 4])
         .on("zoom", (event) => g.attr("transform", event.transform));
 
     svg.call(zoom);
@@ -164,6 +170,22 @@ class BlockVisualizer:
     .on("mouseout", () => {
     tooltip.style("opacity", 0);
     });
+
+    function notifyBirdView() {
+        window.mainGraphState = {
+            nodes: graphData.nodes,
+            edges: graphData.edges,
+            width: width,
+            height: height,
+            nodeWidth: nodeRadius * 2,
+            nodeHeight: nodeRadius * 2,
+            nodeRadius: nodeRadius,
+            selectedNodeId: selectedNodeId,
+            transform: d3.zoomTransform(svg.node())
+        };
+
+        window.dispatchEvent(new CustomEvent("main-view-updated"));
+    }
 
     </script>
     """

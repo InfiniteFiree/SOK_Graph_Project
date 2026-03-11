@@ -14,7 +14,7 @@ class SimpleVisualizer(VisualizationPlugin):
 
     def visualize(self, graph: Graph, **kwargs) -> str:
         width = kwargs.get("width", 900)
-        height = kwargs.get("height", 600)
+        height = kwargs.get("height", 550)
         link_distance = kwargs.get("link_distance", 140)
         charge_strength = kwargs.get("charge_strength", -500)
         node_radius = kwargs.get("node_radius", 28)

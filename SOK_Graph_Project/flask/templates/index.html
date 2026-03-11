@@ -26,9 +26,7 @@
     <button onclick="window.location='/?type=simple'">Simple Visualizer</button>
 </div>
 
-<div id="graph-container">
-    {{ graph_html | safe }}
-</div>
+{% include "main_view/graph_main_view_body.html" %}
 
 <script src="https://d3js.org/d3.v7.min.js"></script>
 
@@ -49,7 +47,5 @@
 {% endblock %}
 
 {% block bird %}
-<div class="bird-canvas">
-    {{ bird_view|safe }}
-</div>
+    {% include "bird_view/graph_bird_view_body.html" %}
 {% endblock %}

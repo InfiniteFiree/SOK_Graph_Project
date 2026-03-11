@@ -3,8 +3,6 @@ import os
 import importlib.util
 
 from jinja2 import ChoiceLoader, FileSystemLoader
-
-from jinja2 import ChoiceLoader, FileSystemLoader
 from flask import Flask, render_template, request
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -62,6 +60,7 @@ def index():
 
     # Load graph from CSV
     graph = csv_db.load()
+    graph_dict = csv_db.to_dict(graph)
 
     # Main visualization
     app.config["GRAPH"] = graph
@@ -71,7 +70,7 @@ def index():
 
     # Bird view
     bird_view = BirdView()
-    bird_view_html = bird_view.render(graph)
+    bird_view_html = bird_view.render(graph_dict)
 
     # Tree view placeholder for now.
     # Later, replace html_content or html_path with output from Simple Visualizer.
