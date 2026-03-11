@@ -60,7 +60,6 @@ def index():
 
     # Load graph from CSV
     graph = csv_db.load()
-    graph_dict = csv_db.to_dict(graph)
 
     # Main visualization
     app.config["GRAPH"] = graph
@@ -70,13 +69,10 @@ def index():
 
     # Bird view
     bird_view = BirdView()
-    bird_view_html = bird_view.render(graph_dict)
+    bird_view_html = bird_view.render()
 
-    # Tree view placeholder for now.
-    # Later, replace html_content or html_path with output from Simple Visualizer.
-    tree_view = TreeView(
-        html_content=None,
-    )
+    # Tree view
+    tree_view = TreeView(graph)
     tree_view_html = tree_view.render()
 
     return render_template(

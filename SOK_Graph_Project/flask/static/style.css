@@ -35,25 +35,6 @@ body {
     overflow: auto;
 }
 
-.graph-tree-root,
-.graph-tree-root ul {
-    list-style-type: none;
-    padding-left: 18px;
-    margin: 0;
-}
-
-.graph-tree-root li {
-    margin: 4px 0;
-}
-
-.graph-tree-root summary {
-    cursor: pointer;
-}
-
-.tree-summary p {
-    margin: 4px 0;
-}
-
 /* MAIN VIEW */
 .main-view {
     background-color: white;
