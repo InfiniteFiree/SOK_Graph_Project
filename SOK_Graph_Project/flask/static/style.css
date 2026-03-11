@@ -124,3 +124,7 @@ body {
 .toolbar button:hover {
     background-color: #45a049;
 }
+
+.visualizer_buttons {
+    margin-bottom: 10px;
+}
