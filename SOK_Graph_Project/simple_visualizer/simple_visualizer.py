@@ -1,5 +1,4 @@
 import json
-import html
 from typing import Any
 
 from api.graph.api.services.plugin import VisualizationPlugin
@@ -7,17 +6,6 @@ from api.graph.api.model.graph import Graph
 
 
 class SimpleVisualizer(VisualizationPlugin):
-    """
-    A D3-based visualization plugin that renders a Graph as an interactive force-directed graph.
-
-    Features:
-    - Nodes displayed as circles with labels in the form "id=n"
-    - Node dragging
-    - Clickable nodes that open a popup with node details
-    - Selected-node highlighting
-    - Dispatches a browser event ('graph-node-selected') so other views can sync highlighting
-    """
-
     def name(self) -> str:
         return "Simple Visualizer"
 
@@ -29,6 +17,7 @@ class SimpleVisualizer(VisualizationPlugin):
         height = kwargs.get("height", 600)
         link_distance = kwargs.get("link_distance", 140)
         charge_strength = kwargs.get("charge_strength", -500)
+        node_radius = kwargs.get("node_radius", 28)
 
         graph_dict = self._graph_to_d3_dict(graph)
         graph_json = json.dumps(graph_dict)
@@ -39,10 +28,6 @@ class SimpleVisualizer(VisualizationPlugin):
 
         return f"""
 <div id="{container_id}" class="simple-visualizer-wrapper">
-    <div class="simple-visualizer-toolbar">
-        <span><strong>Simple Visualizer</strong></span>
-    </div>
-
     <div class="simple-visualizer-canvas"></div>
 
     <div id="{overlay_id}" class="simple-visualizer-overlay" style="display: none;"></div>
@@ -64,13 +49,6 @@ class SimpleVisualizer(VisualizationPlugin):
         border-radius: 8px;
         background: #fff;
         overflow: hidden;
-    }}
-
-    #{container_id} .simple-visualizer-toolbar {{
-        padding: 10px 12px;
-        border-bottom: 1px solid #e0e0e0;
-        background: #f8f8f8;
-        font-size: 14px;
     }}
 
     #{container_id} .simple-visualizer-canvas {{
@@ -145,6 +123,11 @@ class SimpleVisualizer(VisualizationPlugin):
         width: 100%;
         height: 100%;
         display: block;
+        cursor: grab;
+    }}
+
+    #{container_id} svg:active {{
+        cursor: grabbing;
     }}
 
     #{container_id} .link {{
@@ -154,16 +137,16 @@ class SimpleVisualizer(VisualizationPlugin):
     }}
 
     #{container_id} .node-circle {{
-        fill: #69b3a2;
-        stroke: #333;
-        stroke-width: 1.5px;
+        fill: #f8f8f8;
+        stroke: #444;
+        stroke-width: 2px;
         cursor: pointer;
     }}
 
     #{container_id} .node-circle.selected {{
-        stroke: #d62828;
-        stroke-width: 4px;
-        fill: #ffcc80;
+        fill: #4a90e2;
+        stroke: #1f5fa8;
+        stroke-width: 3px;
     }}
 
     #{container_id} .node-label {{
@@ -188,18 +171,31 @@ class SimpleVisualizer(VisualizationPlugin):
     const closeBtn = wrapper.querySelector(".simple-visualizer-close-btn");
     const modalBody = wrapper.querySelector(".simple-visualizer-modal-body");
 
+    d3.select(canvas).selectAll("svg").remove();
+
     const width = canvas.clientWidth || {width};
     const height = {height};
+    const nodeRadius = {node_radius};
+
+    let selectedNodeId = null;
 
     const svg = d3.select(canvas)
         .append("svg")
+        .attr("width", width)
+        .attr("height", height)
         .attr("viewBox", `0 0 ${{width}} ${{height}}`)
         .attr("preserveAspectRatio", "xMidYMid meet");
 
-    const linkGroup = svg.append("g");
-    const nodeGroup = svg.append("g");
+    const graphLayer = svg.append("g");
 
-    let selectedNodeId = null;
+    const zoom = d3.zoom()
+        .scaleExtent([0.2, 4])
+        .on("zoom", function(event) {{
+            graphLayer.attr("transform", event.transform);
+            notifyBirdView();
+        }});
+
+    svg.call(zoom);
 
     const simulation = d3.forceSimulation(graphData.nodes)
         .force("link", d3.forceLink(graphData.edges)
@@ -207,30 +203,35 @@ class SimpleVisualizer(VisualizationPlugin):
             .distance({link_distance}))
         .force("charge", d3.forceManyBody().strength({charge_strength}))
         .force("center", d3.forceCenter(width / 2, height / 2))
-        .force("collision", d3.forceCollide().radius(34));
+        .force("collision", d3.forceCollide().radius(nodeRadius + 8));
 
-    const links = linkGroup
+    const links = graphLayer.append("g")
         .selectAll("line")
         .data(graphData.edges)
         .enter()
         .append("line")
         .attr("class", "link");
 
-    const nodes = nodeGroup
+    const nodes = graphLayer.append("g")
         .selectAll("g")
         .data(graphData.nodes)
         .enter()
         .append("g")
         .attr("class", "node")
-        .call(drag(simulation));
+        .call(d3.drag()
+            .on("start", dragstarted)
+            .on("drag", dragged)
+            .on("end", dragended));
 
     nodes.append("circle")
         .attr("class", "node-circle")
-        .attr("r", 24)
+        .attr("r", nodeRadius)
         .on("click", function(event, d) {{
             event.stopPropagation();
             selectNode(d.id);
             showNodeDetails(d);
+            notifyBirdView();
+
             window.dispatchEvent(new CustomEvent("graph-node-selected", {{
                 detail: {{
                     nodeId: d.id,
@@ -251,59 +252,52 @@ class SimpleVisualizer(VisualizationPlugin):
             .attr("y2", d => d.target.y);
 
         nodes.attr("transform", d => `translate(${{d.x}}, ${{d.y}})`);
+
+        notifyBirdView();
     }});
 
-    function drag(simulation) {{
-        function dragstarted(event, d) {{
-            if (!event.active) simulation.alphaTarget(0.3).restart();
-            d.fx = d.x;
-            d.fy = d.y;
-        }}
+    function dragstarted(event, d) {{
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+    }}
 
-        function dragged(event, d) {{
-            d.fx = event.x;
-            d.fy = event.y;
-        }}
+    function dragged(event, d) {{
+        d.fx = event.x;
+        d.fy = event.y;
+        notifyBirdView();
+    }}
 
-        function dragended(event, d) {{
-            if (!event.active) simulation.alphaTarget(0);
-            d.fx = null;
-            d.fy = null;
-        }}
-
-        return d3.drag()
-            .on("start", dragstarted)
-            .on("drag", dragged)
-            .on("end", dragended);
+    function dragended(event, d) {{
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+        notifyBirdView();
     }}
 
     function selectNode(nodeId) {{
         selectedNodeId = String(nodeId);
 
-        wrapper.querySelectorAll(".node-circle").forEach(circle => {{
-            circle.classList.remove("selected");
-        }});
-
         nodes.each(function(d) {{
             const circle = this.querySelector(".node-circle");
-            if (String(d.id) === selectedNodeId && circle) {{
+            if (!circle) return;
+
+            if (String(d.id) === selectedNodeId) {{
                 circle.classList.add("selected");
+            }} else {{
+                circle.classList.remove("selected");
             }}
         }});
     }}
 
     function showNodeDetails(nodeData) {{
         const rows = Object.entries(nodeData.data || {{}})
-            .map(([key, value]) => {{
-                const safeKey = escapeHtml(String(key));
-                const safeValue = escapeHtml(String(value));
-                return `
-                    <tr>
-                        <td class="simple-visualizer-detail-key">${{safeKey}}</td>
-                        <td>${{safeValue}}</td>
-                    </tr>
-                `;
-            }})
+            .map(([key, value]) => `
+                <tr>
+                    <td class="simple-visualizer-detail-key">${{escapeHtml(String(key))}}</td>
+                    <td>${{escapeHtml(String(value))}}</td>
+                </tr>
+            `)
             .join("");
 
         modalBody.innerHTML = `
@@ -334,23 +328,39 @@ class SimpleVisualizer(VisualizationPlugin):
             .replace(/'/g, "&#039;");
     }}
 
+    function notifyBirdView() {{
+        window.mainGraphState = {{
+            nodes: graphData.nodes,
+            edges: graphData.edges,
+            width: width,
+            height: height,
+            nodeWidth: nodeRadius * 2,
+            nodeHeight: nodeRadius * 2,
+            nodeRadius: nodeRadius,
+            selectedNodeId: selectedNodeId,
+            transform: d3.zoomTransform(svg.node())
+        }};
+
+        window.dispatchEvent(new CustomEvent("main-view-updated"));
+    }}
+
     closeBtn.addEventListener("click", hideModal);
     overlay.addEventListener("click", hideModal);
 
-    wrapper.addEventListener("click", function(event) {{
-        if (event.target.tagName.toLowerCase() === "svg") {{
+    svg.on("click", function(event) {{
+        if (event.target === svg.node()) {{
             hideModal();
         }}
     }});
 
     window.addEventListener("graph-node-selected", function(event) {{
         const detail = event.detail || {{}};
-        const nodeId = detail.nodeId;
-
-        if (nodeId == null) return;
-
-        selectNode(nodeId);
+        if (detail.nodeId == null) return;
+        selectNode(detail.nodeId);
+        notifyBirdView();
     }});
+
+    notifyBirdView();
 }})();
 </script>
 """
@@ -363,12 +373,9 @@ class SimpleVisualizer(VisualizationPlugin):
             return {"nodes": [], "edges": []}
 
         for node in graph.nodes or []:
-            node_id = str(node.index)
-            node_data = node.data if isinstance(node.data, dict) else {}
-
             nodes.append({
-                "id": node_id,
-                "data": node_data
+                "id": str(node.index),
+                "data": node.data if isinstance(node.data, dict) else {}
             })
 
         for edge in graph.edges or []:
@@ -382,7 +389,5 @@ class SimpleVisualizer(VisualizationPlugin):
 
         return {
             "nodes": nodes,
-            "edges": edges,
-            "directed": bool(getattr(graph, "directed", False)),
-            "cyclic": bool(getattr(graph, "cyclic", False))
+            "edges": edges
         }
