@@ -31,8 +31,8 @@ class BlockVisualizer:
     const simulation = d3.forceSimulation(graphData.nodes)
         .force("link", d3.forceLink(graphData.edges)
             .id(d => d.id)
-            .distance(150))
-        .force("charge", d3.forceManyBody().strength(-400))
+            .distance(200))  // veća udaljenost linkova
+        .force("charge", d3.forceManyBody().strength(-3000)) // jača odbojnost
         .force("center", d3.forceCenter(width/2, height/2));
 
     const link = g.append("g")
@@ -43,8 +43,6 @@ class BlockVisualizer:
         .attr("stroke", "#999")
         .attr("stroke-width", 2);
 
-
-    // g element per node
     const node = g.append("g")
         .selectAll("g")
         .data(graphData.nodes)
@@ -57,31 +55,43 @@ class BlockVisualizer:
                 .on("end", dragended)
         );
 
+        node.each(function(d){
 
-    // Circle for each node
-    node.append("circle")
-        .attr("r", 30)
-        .attr("fill", "#4CAF50");
+            const group = d3.select(this);
 
+            const lines = [
+                "id: " + d.id,
+                ...Object.entries(d.data)
+                    .map(([k,v]) => k + ": " + v)
+            ];
 
-    // Text inside each circle
-    node.append("text")
-        .attr("text-anchor", "middle")
-        .attr("dy", 5)
-        .attr("fill", "white")
-        .text(d => d.data.name);
+            const lineHeight = 18;
+            const padding = 10;
 
+            const rectHeight = lines.length * lineHeight + padding*2;
+            const rectWidth = 160;
 
-    // Click event to show node details
-    node.on("click", (event, d) => {
+            group.append("rect")
+                .attr("x", -rectWidth/2)
+                .attr("y", -rectHeight/2)
+                .attr("width", rectWidth)
+                .attr("height", rectHeight)
+                .attr("rx", 6)
+                .attr("fill", "#4CAF50");
 
-        const details = Object.entries(d.data)
-            .map(([key, value]) => key + ": " + value)
-            .join("\\n");
+            const text = group.append("text")
+                .attr("text-anchor", "middle")
+                .attr("fill", "white")
+                .attr("y", -rectHeight/2 + padding + 10);
 
-        alert("Node ID: " + d.id + "\\n" + details);
+            lines.forEach((line,i)=>{
+                text.append("tspan")
+                    .attr("x",0)
+                    .attr("dy", i === 0 ? 0 : lineHeight)
+                    .text(line);
+            });
+
     });
-
 
     // Update positions on tick
     simulation.on("tick", () => {
@@ -94,7 +104,6 @@ class BlockVisualizer:
 
         node.attr("transform", d => "translate(" + d.x + "," + d.y + ")");
     });
-
 
     function dragstarted(event, d) {
         if (!event.active) simulation.alphaTarget(0.3).restart();
@@ -113,13 +122,11 @@ class BlockVisualizer:
         d.fy = null;
     }
 
-
     const zoom = d3.zoom()
         .scaleExtent([0.5, 5])
         .on("zoom", (event) => g.attr("transform", event.transform));
 
     svg.call(zoom);
-
 
     node.call(
         d3.drag()
@@ -127,7 +134,6 @@ class BlockVisualizer:
             .on("drag", dragged)
             .on("end", dragended)
     );
-
 
     // Kreiraj div tooltip u HTML-u
     const tooltip = d3.select("body")
