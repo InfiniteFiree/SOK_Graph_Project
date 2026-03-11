@@ -14,10 +14,53 @@
     <button onclick="applyQueries()">Apply</button>
 </div>
 
-<div class="visualizer_buttons">
-    <button onclick="window.location='/?type=block'">Block Visualizer</button>
-    <button onclick="window.location='/?type=simple'">Simple Visualizer</button>
+<div class="plugins_buttons">
+    <button onclick="togglePluginPanel()">Plugins</button>
+    <button onclick="toggleDataSourcePanel()">Data Sources</button>
 </div>
+
+<div id="plugin-panel" style="display:none">
+    <h3>Plugins</h3>
+    {% for id, plugin in plugins.items() %}
+        <label>
+            <input type="radio" name="plugin" value="{{ id }}"
+                {% if id == selected_visualizer %}checked{% endif %}
+                onchange="updateSelection()">
+            {{ plugin.name() }}
+        </label><br>
+    {% endfor %}
+</div>
+
+<div id="data-source-panel" style="display:none">
+    <h3>Data Sources</h3>
+    {% for id, plugin in data_plugins.items() %}
+        <label>
+            <input type="radio" name="data_source" value="{{ id }}"
+                {% if id == selected_data_source %}checked{% endif %}
+                onchange="updateSelection()">
+            {{ plugin.name() }}
+        </label><br>
+    {% endfor %}
+</div>
+
+<script>
+function togglePluginPanel() {
+    const panel = document.getElementById("plugin-panel");
+    panel.style.display = panel.style.display === "none" ? "block" : "none";
+}
+
+function toggleDataSourcePanel() {
+    const panel = document.getElementById("data-source-panel");
+    panel.style.display = panel.style.display === "none" ? "block" : "none";
+}
+
+function updateSelection() {
+    const selectedVisualizer = document.querySelector('#plugin-panel input[type=radio]:checked')?.value || "simple";
+    const selectedDataSource = document.querySelector('#data-source-panel input[type=radio]:checked')?.value || "csv";
+    window.location = "/?type=" + selectedVisualizer + "&data_source=" + selectedDataSource;
+}
+
+</script>
 
 <div id="graph-container"> </div>
 {{ graph_html | safe }}
