@@ -1,6 +1,8 @@
 import sys
 import os
 import importlib.util
+import logging
+import json
 
 from jinja2 import ChoiceLoader, FileSystemLoader
 from flask import Flask, render_template, request
@@ -9,6 +11,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
+from json_data_source.json_db.json_db import JSONRepository
 from core.service.use_cases.plugin_recognition import recognize_plugin
 from core.service.use_cases.tree_view import TreeView
 from core.service.use_cases.bird_view import BirdView
@@ -18,6 +21,7 @@ from csv_data_source.csv_db.csv_db import CsvDb
 
 app = Flask(__name__)
 app.config['APP_NAME'] = "Graph Visualizer"
+app.logger.setLevel(logging.INFO)
 
 # Allow Flask to load templates both from flask/templates and core/templates
 flask_templates = os.path.join(project_root, 'flask', 'templates')
@@ -61,6 +65,16 @@ def index():
     # Load graph from CSV
     graph = csv_db.load()
     graph_dict = csv_db.to_dict(graph)
+
+    # Load graph from JSON
+    repository = JSONRepository("test_graph.json")
+    json_graph = repository.read_from_file()
+    json_graph_dict = repository.graph_to_dict(json_graph)
+
+    # if json_graph_dict is None:
+    #     app.logger.info("Failed to load graph from file.")
+    # else:
+    #     app.logger.info("Graph structure:\n%s", json.dumps(json_graph_dict, indent=2, ensure_ascii=False))
 
     # Main visualization
     app.config["GRAPH"] = graph
