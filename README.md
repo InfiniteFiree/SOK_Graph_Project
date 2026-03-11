@@ -1,7 +1,7 @@
 # SOK_Graph_Project
 ### Project for the visualization of graphs in space, utilizing plug-ins for the main functions of the app.
 
-## Team members
+## Team 8 - members
 - SV 28/2023	Marko	Đorđević
 - SV 79/2023	Aleksa	Nenadović
 - SV 85/2024	Lana	Vuković

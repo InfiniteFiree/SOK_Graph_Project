@@ -61,6 +61,7 @@ def index():
     graph = csv_db.load()
 
     # Main visualization
+    app.config["GRAPH"] = graph
     user_choice = request.args.get("type")  # simple ili block
     visualizer = recognize_plugin(user_choice)
     graph_html = visualizer.visualize(graph)
