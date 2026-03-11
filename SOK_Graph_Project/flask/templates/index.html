@@ -5,45 +5,9 @@
 {% endblock %}
 
 {% block content %}
-<div class="toolbar">
-    <input type="text" id="file-search" placeholder="Search nodes/files..." oninput="applySearch()">
-
-    <input type="text" class="query-input" placeholder="Node ID" data-operator="=">
-    <select class="query-operator">
-        <option value="=">=</option>
-        <option value="<"><</option>
-        <option value="<="><=</option>
-        <option value=">">></option>
-        <option value=">=">>=</option>
-    </select>
-    <input type="text" class="query-input" placeholder="Value">
-
-    <button onclick="applyQueries()">Apply</button>
-</div>
-
-<div class="visualizer_buttons">
-    <button onclick="window.location='/?type=block'">Block Visualizer</button>
-    <button onclick="window.location='/?type=simple'">Simple Visualizer</button>
-</div>
 
 {% include "main_view/graph_main_view_body.html" %}
 
-<script src="https://d3js.org/d3.v7.min.js"></script>
-
-<script>
-    const width = 800;
-    const height = 600;
-
-    const svg = d3.select("#{container}")
-        .append("svg")
-        .attr("width", "100%")
-        .attr("height", height);
-
-    const simulation = d3.forceSimulation()
-        .force("link", d3.forceLink().id(d => d.id).distance(150))
-        .force("charge", d3.forceManyBody().strength(-500))
-        .force("center", d3.forceCenter(width / 2, height / 2));
-</script>
 {% endblock %}
 
 {% block bird %}

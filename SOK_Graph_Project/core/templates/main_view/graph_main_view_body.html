@@ -1,3 +1,23 @@
-<div id="graph-container">
-    {{ graph_html | safe }}
+<div class="toolbar">
+    <input type="text" id="file-search" placeholder="Search nodes/files..." oninput="applySearch()">
+
+    <input type="text" class="query-input" placeholder="Node ID" data-operator="=">
+    <select class="query-operator">
+        <option value="=">=</option>
+        <option value="<"><</option>
+        <option value="<="><=</option>
+        <option value=">">></option>
+        <option value=">=">>=</option>
+    </select>
+    <input type="text" class="query-input" placeholder="Value">
+
+    <button onclick="applyQueries()">Apply</button>
 </div>
+
+<div class="visualizer_buttons">
+    <button onclick="window.location='/?type=block'">Block Visualizer</button>
+    <button onclick="window.location='/?type=simple'">Simple Visualizer</button>
+</div>
+
+<div id="graph-container"> </div>
+{{ graph_html | safe }}
