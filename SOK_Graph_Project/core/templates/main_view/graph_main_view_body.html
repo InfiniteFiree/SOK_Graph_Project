@@ -67,6 +67,10 @@ function getSelectedDataSource() {
     return document.querySelector('#data-source-panel input[type=radio]:checked')?.value || "csv";
 }
 
+function getActiveWorkspaceId() {
+    return "{{ active_workspace_id }}";
+}
+
 async function updateGraph(endpoint, payload) {
     const response = await fetch(endpoint, {
         method: "POST",
@@ -121,7 +125,8 @@ function applyFilter() {
         attribute: attribute,
         operator: operator,
         value: value,
-        type: getSelectedVisualizer()
+        type: getSelectedVisualizer(),
+        workspace_id: getActiveWorkspaceId()
     });
 }
 
@@ -130,7 +135,8 @@ function clearFilters() {
         mode: "{{ selected_mode }}",
         dataset: "{{ selected_dataset }}",
         data_source: getSelectedDataSource(),
-        type: getSelectedVisualizer()
+        type: getSelectedVisualizer(),
+        workspace_id: getActiveWorkspaceId()
     });
 }
 
@@ -139,7 +145,8 @@ function applySearch() {
 
     updateGraph("/search", {
         query: query,
-        type: getSelectedVisualizer()
+        type: getSelectedVisualizer(),
+        workspace_id: getActiveWorkspaceId()
     });
 }
 
