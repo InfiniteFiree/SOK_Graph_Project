@@ -1,17 +1,21 @@
 <div class="toolbar">
-    <input type="text" id="file-search" placeholder="Search nodes/files..." oninput="applySearch()">
+    <input type="text" id="search-input" placeholder="Search graph...">
 
-    <input type="text" class="query-input" placeholder="Node ID" data-operator="=">
-    <select class="query-operator">
+    <button onclick="applySearch()">Search</button>
+
+    <input type="text" id="attribute-input" class="query-input" placeholder="Attribute" data-operator="=">
+    <select class="query-operator" id="operator-select">
         <option value="=">=</option>
         <option value="<"><</option>
         <option value="<="><=</option>
         <option value=">">></option>
         <option value=">=">>=</option>
     </select>
-    <input type="text" class="query-input" placeholder="Value">
+    <input type="text" id="value-input" class="query-input" placeholder="Value">
 
-    <button onclick="applyQueries()">Apply</button>
+    <button onclick="applyFilter()">Filter</button>
+
+    <button onclick="clearFilters()">Clear</button>
 </div>
 
 <div class="plugins_buttons">
@@ -60,7 +64,90 @@ function updateSelection() {
     window.location = "/?type=" + selectedVisualizer + "&data_source=" + selectedDataSource;
 }
 
+function getSelectedVisualizer() {
+    return document.querySelector('#plugin-panel input[type=radio]:checked')?.value || "simple_visualizer";
+}
+
+function getSelectedDataSource() {
+    return document.querySelector('#data-source-panel input[type=radio]:checked')?.value || "csv";
+}
+
+async function updateGraph(endpoint, payload) {
+    const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        console.error("Request failed", endpoint);
+        return;
+    }
+
+    const result = await response.json();
+    if (result.graph_html !== undefined) {
+        const container = document.getElementById("graph-container");
+        container.innerHTML = result.graph_html;
+
+        // Scripts inside innerHTML are not executed by the browser.
+        // Re-create and re-run them sequentially, waiting for external
+        // src scripts (e.g. D3) to finish loading before inline scripts run.
+        const scripts = Array.from(container.querySelectorAll("script"));
+
+        function execNext(i) {
+            if (i >= scripts.length) return;
+            const orig = scripts[i];
+            const s = document.createElement("script");
+            if (orig.src) {
+                s.src = orig.src;
+                s.onload = () => execNext(i + 1);
+                s.onerror = () => execNext(i + 1);
+                document.body.appendChild(s);
+            } else {
+                s.textContent = orig.textContent;
+                document.body.appendChild(s);
+                execNext(i + 1);
+            }
+            orig.remove();
+        }
+
+        execNext(0);
+    }
+}
+
+function applyFilter() {
+    const attribute = document.getElementById("attribute-input").value;
+    const operator = document.getElementById("operator-select").value;
+    const value = document.getElementById("value-input").value;
+
+    updateGraph("/apply_filter", {
+        attribute: attribute,
+        operator: operator,
+        value: value,
+        type: getSelectedVisualizer()
+    });
+}
+
+function clearFilters() {
+    updateGraph("/clear_filters", {
+        mode: "{{ selected_mode }}",
+        dataset: "{{ selected_dataset }}",
+        data_source: getSelectedDataSource(),
+        type: getSelectedVisualizer()
+    });
+}
+
+function applySearch() {
+    const query = document.getElementById("search-input").value;
+
+    updateGraph("/search", {
+        query: query,
+        type: getSelectedVisualizer()
+    });
+}
+
 </script>
 
-<div id="graph-container"> </div>
-{{ graph_html | safe }}
+<div id="graph-container">{{ graph_html | safe }}</div>

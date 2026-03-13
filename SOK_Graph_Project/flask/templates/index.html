@@ -1,5 +1,9 @@
 {% extends "base.html" %}
 
+{% block toolbar %}
+    {% include "tool_bar/graph_tool_bar_body.html" %}
+{% endblock %}
+
 {% block tree %}
     {% include "tree_view/graph_tree_view_body.html" %}
 {% endblock %}

@@ -1,0 +1,24 @@
+<div class="top-toolbar">
+    <div class="tb-dropdown">
+        <button type="button" onclick="toggleDropdown('file-dropdown')">File &#9662;</button>
+        <div id="file-dropdown" class="tb-dropdown-menu">
+            <button type="button">Open</button>
+            <button type="button">Save</button>
+        </div>
+    </div>
+    <button type="button">Plugin</button>
+</div>
+
+<script>
+function toggleDropdown(id) {
+    const menu = document.getElementById(id);
+    menu.classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.tb-dropdown')) {
+        document.querySelectorAll('.tb-dropdown-menu').forEach(function(m) {
+            m.classList.remove('open');
+        });
+    }
+});
+</script>
