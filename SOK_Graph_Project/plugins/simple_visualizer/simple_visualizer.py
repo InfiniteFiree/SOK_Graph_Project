@@ -13,6 +13,8 @@ class SimpleVisualizer(VisualizationPlugin):
         return "simple_visualizer"
 
     def visualize(self, graph: Graph, **kwargs) -> str:
+        workspace_id = kwargs.get("workspace_id", "default-workspace")
+
         width = kwargs.get("width", 900)
         height = kwargs.get("height", 550)
         link_distance = kwargs.get("link_distance", 140)
@@ -21,10 +23,11 @@ class SimpleVisualizer(VisualizationPlugin):
 
         graph_dict = self._graph_to_d3_dict(graph)
         graph_json = json.dumps(graph_dict)
+        workspace_id_json = json.dumps(str(workspace_id))
 
-        container_id = kwargs.get("container_id", "simple-visualizer-container")
-        modal_id = kwargs.get("modal_id", "simple-visualizer-modal")
-        overlay_id = kwargs.get("overlay_id", "simple-visualizer-overlay")
+        container_id = kwargs.get("container_id", f"simple-visualizer-container-{workspace_id}")
+        modal_id = kwargs.get("modal_id", f"simple-visualizer-modal-{workspace_id}")
+        overlay_id = kwargs.get("overlay_id", f"simple-visualizer-overlay-{workspace_id}")
 
         return f"""
 <div id="{container_id}" class="simple-visualizer-wrapper">
@@ -163,6 +166,7 @@ class SimpleVisualizer(VisualizationPlugin):
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script>
 (function() {{
+    const workspaceId = {workspace_id_json};
     const graphData = {graph_json};
     const wrapper = document.getElementById("{container_id}");
     const canvas = wrapper.querySelector(".simple-visualizer-canvas");
@@ -170,6 +174,8 @@ class SimpleVisualizer(VisualizationPlugin):
     const overlay = document.getElementById("{overlay_id}");
     const closeBtn = wrapper.querySelector(".simple-visualizer-close-btn");
     const modalBody = wrapper.querySelector(".simple-visualizer-modal-body");
+
+    window.workspaceGraphStates = window.workspaceGraphStates || {{}};
 
     d3.select(canvas).selectAll("svg").remove();
 
@@ -185,6 +191,20 @@ class SimpleVisualizer(VisualizationPlugin):
         .attr("height", height)
         .attr("viewBox", `0 0 ${{width}} ${{height}}`)
         .attr("preserveAspectRatio", "xMidYMid meet");
+
+    const defs = svg.append("defs");
+
+    defs.append("marker")
+        .attr("id", `arrowhead-${{workspaceId}}`)
+        .attr("viewBox", "0 -5 10 10")
+        .attr("refX", nodeRadius + 10)
+        .attr("refY", 0)
+        .attr("markerWidth", 7)
+        .attr("markerHeight", 7)
+        .attr("orient", "auto")
+        .append("path")
+        .attr("d", "M0,-5L10,0L0,5")
+        .attr("fill", "#999");
 
     const graphLayer = svg.append("g");
 
@@ -210,7 +230,8 @@ class SimpleVisualizer(VisualizationPlugin):
         .data(graphData.edges)
         .enter()
         .append("line")
-        .attr("class", "link");
+        .attr("class", "link")
+        .attr("marker-end", graphData.directed ? `url(#arrowhead-${{workspaceId}})` : null);
 
     const nodes = graphLayer.append("g")
         .selectAll("g")
@@ -234,6 +255,7 @@ class SimpleVisualizer(VisualizationPlugin):
 
             window.dispatchEvent(new CustomEvent("graph-node-selected", {{
                 detail: {{
+                    workspaceId: workspaceId,
                     nodeId: d.id,
                     source: "{container_id}"
                 }}
@@ -252,7 +274,6 @@ class SimpleVisualizer(VisualizationPlugin):
             .attr("y2", d => d.target.y);
 
         nodes.attr("transform", d => `translate(${{d.x}}, ${{d.y}})`);
-
         notifyBirdView();
     }});
 
@@ -293,6 +314,7 @@ class SimpleVisualizer(VisualizationPlugin):
     function focusNode(nodeId) {{
         const targetNode = graphData.nodes.find(n => String(n.id) === String(nodeId));
         if (!targetNode) return;
+        if (!Number.isFinite(targetNode.x) || !Number.isFinite(targetNode.y)) return;
 
         const currentTransform = d3.zoomTransform(svg.node());
         const currentScale = currentTransform.k || 1;
@@ -352,7 +374,7 @@ class SimpleVisualizer(VisualizationPlugin):
     }}
 
     function notifyBirdView() {{
-        window.mainGraphState = {{
+        window.workspaceGraphStates[workspaceId] = {{
             nodes: graphData.nodes,
             edges: graphData.edges,
             width: width,
@@ -364,7 +386,11 @@ class SimpleVisualizer(VisualizationPlugin):
             transform: d3.zoomTransform(svg.node())
         }};
 
-        window.dispatchEvent(new CustomEvent("main-view-updated"));
+        window.dispatchEvent(new CustomEvent("main-view-updated", {{
+            detail: {{
+                workspaceId: workspaceId
+            }}
+        }}));
     }}
 
     closeBtn.addEventListener("click", hideModal);
@@ -378,11 +404,9 @@ class SimpleVisualizer(VisualizationPlugin):
 
     window.addEventListener("graph-node-selected", function(event) {{
         const detail = event.detail || {{}};
+        if (detail.workspaceId !== workspaceId) return;
         if (detail.nodeId == null) return;
-
-        if (detail.source === "{container_id}") {{
-            return;
-        }}
+        if (detail.source === "{container_id}") return;
 
         selectNode(detail.nodeId);
 
@@ -427,5 +451,7 @@ class SimpleVisualizer(VisualizationPlugin):
 
         return {
             "nodes": nodes,
-            "edges": edges
+            "edges": edges,
+            "directed": bool(getattr(graph, "directed", False)),
+            "cyclic": bool(getattr(graph, "cyclic", False))
         }

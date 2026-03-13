@@ -1,31 +1,45 @@
 import html
 import json
+from collections import defaultdict, deque
 
 
 class TreeView:
     """
-    Lazy tree view:
-    - renders only one root initially
-    - children are loaded into the DOM only when a node is opened
-    - children are derived only from outgoing edges (node1 -> node2)
-    - reacts to graph-node-selected from the main view
+    Lazy, workspace-aware tree view.
+
+    Features:
+    - supports multiple disconnected graph components
+    - renders one root per disconnected graph/component
+    - lazily loads children only when a node is opened
+    - allows repeated graph-node appearances in the tree
+    - children are derived from outgoing edges (node1 -> node2)
+    - for undirected graphs, reverse adjacency is also included
+    - reacts to node selection from the main view
+    - dispatches selection back to the main view
     """
 
     def __init__(self, graph=None):
         self.graph = graph
 
-    def render(self):
+    def render(self, workspace_id="default-workspace"):
         if self.graph is None or not getattr(self.graph, "nodes", None):
             return self._fallback_placeholder()
 
         node_map = self._build_node_map()
-        adjacency = self._build_outgoing_adjacency()
-        root_id = self._choose_root_id()
+        outgoing_adjacency = self._build_outgoing_adjacency()
+        undirected_adjacency = self._build_undirected_adjacency()
+        root_ids = self._choose_root_ids(outgoing_adjacency, undirected_adjacency)
 
-        if root_id is None:
+        if not root_ids:
             return self._fallback_placeholder()
 
-        return self._render_lazy_tree(node_map, adjacency, root_id)
+        return self._render_lazy_forest(
+            node_map=node_map,
+            adjacency=outgoing_adjacency,
+            undirected_adjacency=undirected_adjacency,
+            root_ids=root_ids,
+            workspace_id=workspace_id
+        )
 
     def _build_node_map(self):
         node_map = {}
@@ -50,35 +64,85 @@ class TreeView:
             if source_id in adjacency:
                 adjacency[source_id].append(target_id)
 
+            if not getattr(self.graph, "directed", True):
+                if target_id in adjacency:
+                    adjacency[target_id].append(source_id)
+
         for node_id in adjacency:
             adjacency[node_id] = sorted(adjacency[node_id], key=self._sort_key)
 
         return adjacency
 
-    def _choose_root_id(self):
-        nodes = self.graph.nodes or []
-        if not nodes:
-            return None
+    def _build_undirected_adjacency(self):
+        adjacency = defaultdict(set)
 
-        indegree = {str(node.index): 0 for node in nodes}
+        for node in self.graph.nodes:
+            adjacency[str(node.index)] = set()
 
         for edge in getattr(self.graph, "edges", []) or []:
             if edge.node1 is None or edge.node2 is None:
                 continue
+
+            source_id = str(edge.node1.index)
             target_id = str(edge.node2.index)
-            if target_id in indegree:
-                indegree[target_id] += 1
 
-        zero_indegree = [
-            str(node.index)
-            for node in nodes
-            if indegree[str(node.index)] == 0
-        ]
+            adjacency[source_id].add(target_id)
+            adjacency[target_id].add(source_id)
 
-        if zero_indegree:
-            return sorted(zero_indegree, key=self._sort_key)[0]
+        return {
+            node_id: sorted(list(neighbors), key=self._sort_key)
+            for node_id, neighbors in adjacency.items()
+        }
 
-        return sorted((str(node.index) for node in nodes), key=self._sort_key)[0]
+    def _choose_root_ids(self, outgoing_adjacency, undirected_adjacency):
+        nodes = self.graph.nodes or []
+        if not nodes:
+            return []
+
+        node_ids = [str(node.index) for node in nodes]
+
+        # Build connected components using undirected adjacency
+        components = []
+        visited = set()
+
+        for node_id in sorted(node_ids, key=self._sort_key):
+            if node_id in visited:
+                continue
+
+            component = []
+            queue = deque([node_id])
+            visited.add(node_id)
+
+            while queue:
+                current = queue.popleft()
+                component.append(current)
+
+                for neighbor in undirected_adjacency.get(current, []):
+                    if neighbor not in visited:
+                        visited.add(neighbor)
+                        queue.append(neighbor)
+
+            components.append(sorted(component, key=self._sort_key))
+
+        # For each component, choose at least one root
+        indegree = {node_id: 0 for node_id in node_ids}
+        for source_id, targets in outgoing_adjacency.items():
+            for target_id in targets:
+                if target_id in indegree:
+                    indegree[target_id] += 1
+
+        root_ids = []
+
+        for component in components:
+            zero_indegree = [node_id for node_id in component if indegree[node_id] == 0]
+
+            if zero_indegree:
+                root_ids.append(sorted(zero_indegree, key=self._sort_key)[0])
+            else:
+                # cyclic / fully strongly connected component fallback
+                root_ids.append(sorted(component, key=self._sort_key)[0])
+
+        return sorted(root_ids, key=self._sort_key)
 
     def _sort_key(self, value):
         try:
@@ -86,23 +150,32 @@ class TreeView:
         except Exception:
             return (1, str(value))
 
-    def _render_lazy_tree(self, node_map, adjacency, root_id):
+    def _render_lazy_forest(self, node_map, adjacency, undirected_adjacency, root_ids, workspace_id):
         node_map_json = json.dumps(node_map)
         adjacency_json = json.dumps(adjacency)
-        root_id_escaped = html.escape(str(root_id))
+        workspace_id_json = json.dumps(str(workspace_id))
+        root_ids_json = json.dumps(root_ids)
+
+        root_items_html = "".join(
+            f"""
+            <li class="tree-node-item open selected-root"
+                data-instance-id="root-{html.escape(root_id)}"
+                data-graph-node-id="{html.escape(root_id)}"
+                data-parent-instance-id="">
+                <div class="tree-node-header">
+                    <button type="button" class="tree-toggle" data-role="toggle">-</button>
+                    <span class="tree-node-title">id: {html.escape(root_id)}</span>
+                </div>
+                <div class="tree-node-body"></div>
+            </li>
+            """
+            for root_id in root_ids
+        )
 
         return f"""
-        <div id="tree-view-root" class="tree-view-root" data-root-id="{root_id_escaped}">
+        <div id="tree-view-root" class="tree-view-root">
             <ul class="tree-root-list">
-                <li class="tree-node-item open selected"
-                    data-node-id="{root_id_escaped}"
-                    data-parent-id="">
-                    <div class="tree-node-header">
-                        <button type="button" class="tree-toggle" data-role="toggle">-</button>
-                        <span class="tree-node-title">id: {root_id_escaped}</span>
-                    </div>
-                    <div class="tree-node-body"></div>
-                </li>
+                {root_items_html}
             </ul>
         </div>
 
@@ -143,6 +216,11 @@ class TreeView:
             .tree-node-item.selected > .tree-node-header {{
                 background: #e6f0ff;
                 outline: 1px solid #4a90e2;
+            }}
+
+            .tree-node-item.selected-root > .tree-node-header {{
+                background: #f8fbff;
+                border: 1px solid #d9e8ff;
             }}
 
             .tree-toggle {{
@@ -198,13 +276,20 @@ class TreeView:
 
         <script>
         (function() {{
+            const workspaceId = {workspace_id_json};
             const nodeMap = {node_map_json};
             const adjacency = {adjacency_json};
+            const rootIds = {root_ids_json};
 
             const treeRoot = document.getElementById("tree-view-root");
             if (!treeRoot) return;
 
-            let currentRootId = String(treeRoot.dataset.rootId);
+            let instanceCounter = 0;
+
+            function nextInstanceId() {{
+                instanceCounter += 1;
+                return "instance-" + instanceCounter;
+            }}
 
             function sortIds(ids) {{
                 return [...ids].sort((a, b) => {{
@@ -219,8 +304,12 @@ class TreeView:
                 }});
             }}
 
-            function findItem(nodeId) {{
-                return treeRoot.querySelector(`.tree-node-item[data-node-id="${{CSS.escape(String(nodeId))}}"]`);
+            function findInstanceById(instanceId) {{
+                return treeRoot.querySelector(`.tree-node-item[data-instance-id="${{CSS.escape(String(instanceId))}}"]`);
+            }}
+
+            function getAllInstancesForGraphNode(graphNodeId) {{
+                return Array.from(treeRoot.querySelectorAll(`.tree-node-item[data-graph-node-id="${{CSS.escape(String(graphNodeId))}}"]`));
             }}
 
             function clearSelection() {{
@@ -229,12 +318,11 @@ class TreeView:
                 }});
             }}
 
-            function highlightNode(nodeId) {{
+            function highlightInstance(instanceEl) {{
+                if (!instanceEl) return;
                 clearSelection();
-                const item = findItem(nodeId);
-                if (!item) return;
-                item.classList.add("selected");
-                item.scrollIntoView({{
+                instanceEl.classList.add("selected");
+                instanceEl.scrollIntoView({{
                     behavior: "smooth",
                     block: "nearest"
                 }});
@@ -249,8 +337,8 @@ class TreeView:
                 }}
             }}
 
-            function buildDataHtml(nodeId) {{
-                const node = nodeMap[nodeId];
+            function buildDataHtml(graphNodeId) {{
+                const node = nodeMap[graphNodeId];
                 if (!node) return "";
 
                 const entries = Object.entries(node.data || {{}});
@@ -269,21 +357,25 @@ class TreeView:
                 `;
             }}
 
-            function buildChildrenShellHtml(nodeId) {{
-                const children = sortIds(adjacency[nodeId] || []);
+            function buildChildrenShellHtml(parentGraphNodeId, parentInstanceId) {{
+                const children = sortIds(adjacency[parentGraphNodeId] || []);
                 if (!children.length) return "";
 
-                const items = children.map(childId => `
-                    <li class="tree-node-item"
-                        data-node-id="${{escapeHtml(String(childId))}}"
-                        data-parent-id="${{escapeHtml(String(nodeId))}}">
-                        <div class="tree-node-header">
-                            <button type="button" class="tree-toggle" data-role="toggle">+</button>
-                            <span class="tree-node-title">id: ${{escapeHtml(String(childId))}}</span>
-                        </div>
-                        <div class="tree-node-body"></div>
-                    </li>
-                `).join("");
+                const items = children.map(childId => {{
+                    const instanceId = nextInstanceId();
+                    return `
+                        <li class="tree-node-item"
+                            data-instance-id="${{escapeHtml(instanceId)}}"
+                            data-graph-node-id="${{escapeHtml(String(childId))}}"
+                            data-parent-instance-id="${{escapeHtml(String(parentInstanceId))}}">
+                            <div class="tree-node-header">
+                                <button type="button" class="tree-toggle" data-role="toggle">+</button>
+                                <span class="tree-node-title">id: ${{escapeHtml(String(childId))}}</span>
+                            </div>
+                            <div class="tree-node-body"></div>
+                        </li>
+                    `;
+                }}).join("");
 
                 return `
                     <div class="tree-section-label">children:</div>
@@ -295,11 +387,12 @@ class TreeView:
                 if (!item) return;
                 if (item.dataset.built === "true") return;
 
-                const nodeId = item.dataset.nodeId;
+                const graphNodeId = item.dataset.graphNodeId;
+                const instanceId = item.dataset.instanceId;
                 const body = item.querySelector(':scope > .tree-node-body');
                 if (!body) return;
 
-                body.innerHTML = buildDataHtml(nodeId) + buildChildrenShellHtml(nodeId);
+                body.innerHTML = buildDataHtml(graphNodeId) + buildChildrenShellHtml(graphNodeId, instanceId);
                 item.dataset.built = "true";
 
                 attachHandlersWithin(item);
@@ -330,48 +423,49 @@ class TreeView:
                         toggle.addEventListener("click", function(event) {{
                             event.stopPropagation();
 
-                            const nodeId = item.dataset.nodeId;
+                            const graphNodeId = item.dataset.graphNodeId;
                             const isOpen = item.classList.contains("open");
 
                             if (isOpen) {{
                                 closeNode(item);
                             }} else {{
                                 openNode(item);
-                                selectAndBroadcast(nodeId);
+                                selectAndBroadcast(graphNodeId, item);
                             }}
                         }});
                     }}
 
                     if (header) {{
                         header.addEventListener("click", function() {{
-                            const nodeId = item.dataset.nodeId;
+                            const graphNodeId = item.dataset.graphNodeId;
                             openNode(item);
-                            selectAndBroadcast(nodeId);
+                            selectAndBroadcast(graphNodeId, item);
                         }});
                     }}
                 }});
             }}
 
-            function selectAndBroadcast(nodeId) {{
-                highlightNode(nodeId);
+            function selectAndBroadcast(graphNodeId, item) {{
+                highlightInstance(item);
 
                 window.dispatchEvent(new CustomEvent("graph-node-selected", {{
                     detail: {{
-                        nodeId: String(nodeId),
+                        workspaceId: workspaceId,
+                        nodeId: String(graphNodeId),
                         source: "tree-view",
                         panTo: true
                     }}
                 }}));
             }}
 
-            function bfsPath(startId, targetId) {{
-                startId = String(startId);
+            function bfsPathFromRoot(rootId, targetId) {{
+                rootId = String(rootId);
                 targetId = String(targetId);
 
-                if (startId === targetId) return [startId];
+                if (rootId === targetId) return [rootId];
 
-                const queue = [[startId]];
-                const visited = new Set([startId]);
+                const queue = [[rootId]];
+                const visited = new Set([rootId]);
 
                 while (queue.length) {{
                     const path = queue.shift();
@@ -393,54 +487,70 @@ class TreeView:
                 return null;
             }}
 
-            function renderFreshRoot(newRootId) {{
-                currentRootId = String(newRootId);
-                treeRoot.dataset.rootId = currentRootId;
+            function findBestPathToNode(targetId) {{
+                let bestPath = null;
 
-                const rootList = treeRoot.querySelector(".tree-root-list");
-                rootList.innerHTML = `
-                    <li class="tree-node-item open selected"
-                        data-node-id="${{escapeHtml(currentRootId)}}"
-                        data-parent-id="">
-                        <div class="tree-node-header">
-                            <button type="button" class="tree-toggle" data-role="toggle">-</button>
-                            <span class="tree-node-title">id: ${{escapeHtml(currentRootId)}}</span>
-                        </div>
-                        <div class="tree-node-body"></div>
-                    </li>
-                `;
+                for (const rootId of rootIds) {{
+                    const path = bfsPathFromRoot(rootId, targetId);
+                    if (!path) continue;
 
-                const rootItem = findItem(currentRootId);
-                openNode(rootItem);
-                highlightNode(currentRootId);
-            }}
-
-            function openPath(path) {{
-                if (!path || !path.length) return;
-
-                for (const nodeId of path) {{
-                    const item = findItem(nodeId);
-                    if (item) {{
-                        openNode(item);
+                    if (!bestPath || path.length < bestPath.length) {{
+                        bestPath = path;
                     }}
                 }}
 
-                highlightNode(path[path.length - 1]);
+                return bestPath;
+            }}
+
+            function ensureRootVisible(rootId) {{
+                return treeRoot.querySelector(`.tree-node-item[data-instance-id="root-${{CSS.escape(String(rootId))}}"]`);
+            }}
+
+            function openPath(path) {{
+                if (!path || !path.length) return null;
+
+                const rootId = path[0];
+                let currentInstance = ensureRootVisible(rootId);
+                if (!currentInstance) return null;
+
+                openNode(currentInstance);
+
+                for (let i = 1; i < path.length; i++) {{
+                    const targetNodeId = String(path[i]);
+
+                    const children = Array.from(
+                        currentInstance.querySelectorAll(':scope > .tree-node-body > .tree-children-list > .tree-node-item')
+                    );
+
+                    let nextInstance = children.find(child =>
+                        String(child.dataset.graphNodeId) === targetNodeId
+                    );
+
+                    if (!nextInstance) return currentInstance;
+
+                    openNode(nextInstance);
+                    currentInstance = nextInstance;
+                }}
+
+                highlightInstance(currentInstance);
+                return currentInstance;
             }}
 
             function focusNodeFromExternalSelection(nodeId) {{
                 nodeId = String(nodeId);
 
-                let path = bfsPath(currentRootId, nodeId);
+                const bestPath = findBestPathToNode(nodeId);
 
-                if (path) {{
-                    openPath(path);
+                if (bestPath) {{
+                    openPath(bestPath);
                     return;
                 }}
 
-                // fallback for cyclic/disconnected situations:
-                // selected node becomes the new root
-                renderFreshRoot(nodeId);
+                // fallback: if no root can reach the node, show/select first existing instance if any
+                const existing = getAllInstancesForGraphNode(nodeId);
+                if (existing.length) {{
+                    highlightInstance(existing[0]);
+                }}
             }}
 
             function escapeHtml(value) {{
@@ -454,16 +564,22 @@ class TreeView:
 
             attachHandlersWithin(treeRoot);
 
-            const initialRootItem = findItem(currentRootId);
-            if (initialRootItem) {{
-                openNode(initialRootItem);
-                highlightNode(currentRootId);
+            rootIds.forEach(rootId => {{
+                const rootItem = ensureRootVisible(rootId);
+                if (rootItem) {{
+                    openNode(rootItem);
+                }}
+            }});
+
+            const firstRoot = rootIds.length ? ensureRootVisible(rootIds[0]) : null;
+            if (firstRoot) {{
+                highlightInstance(firstRoot);
             }}
 
             window.addEventListener("graph-node-selected", function(event) {{
                 const detail = event.detail || {{}};
+                if (detail.workspaceId !== workspaceId) return;
                 if (detail.nodeId == null) return;
-
                 if (detail.source === "tree-view") return;
 
                 focusNodeFromExternalSelection(detail.nodeId);
