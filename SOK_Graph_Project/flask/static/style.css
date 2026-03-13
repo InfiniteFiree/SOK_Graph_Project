@@ -6,8 +6,31 @@ body {
 
 .app-container {
     display: grid;
-    grid-template-rows: 60px 1fr 150px;
+    grid-template-rows: 44px 60px 1fr 150px;
     height: 96vh;
+}
+
+/* TOP TOOLBAR */
+.top-toolbar {
+    background-color: #2f2f2f;
+    border-bottom: 1px solid #1f1f1f;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+}
+
+.top-toolbar button {
+    background-color: #444;
+    color: #fff;
+    border: 1px solid #666;
+    border-radius: 4px;
+    padding: 6px 12px;
+    cursor: pointer;
+}
+
+.top-toolbar button:hover {
+    background-color: #555;
 }
 
 /* HEADER */
@@ -110,6 +133,48 @@ body {
     margin-bottom: 10px;
 }
 
+/* TB DROPDOWN */
+.tb-dropdown {
+    position: relative;
+}
+
+.tb-dropdown-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background-color: #3a3a3a;
+    border: 1px solid #666;
+    border-radius: 4px;
+    z-index: 1000;
+    min-width: 110px;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.tb-dropdown-menu.open {
+    display: flex;
+}
+
+.tb-dropdown-menu button {
+    display: block;
+    width: 100%;
+    padding: 8px 14px;
+    text-align: left;
+    background-color: #3a3a3a;
+    color: #fff;
+    border: none;
+    border-bottom: 1px solid #555;
+    cursor: pointer;
+    border-radius: 0;
+}
+
+.tb-dropdown-menu button:last-child {
+    border-bottom: none;
+}
+
+.tb-dropdown-menu button:hover {
+    background-color: #555;
 /* Workspace Bar */
 
 .workspace-bar {
