@@ -1,17 +1,24 @@
+import json
+
+
 class BirdView:
     MINI_WIDTH = 240
     MINI_HEIGHT = 180
     PADDING = 12
 
-    def render(self) -> str:
+    def render(self, workspace_id="default-workspace") -> str:
         w = self.MINI_WIDTH
         h = self.MINI_HEIGHT
         pad = self.PADDING
+        workspace_id_json = json.dumps(str(workspace_id))
 
         html = f"""
         <script>
         (function() {{
+            const workspaceId = {workspace_id_json};
             const birdContainer = d3.select("#bird-canvas");
+            if (birdContainer.empty()) return;
+
             birdContainer.selectAll("svg").remove();
 
             const bW = {w};
@@ -45,7 +52,9 @@ class BirdView:
             }}
 
             function renderBirdView() {{
-                const main = window.mainGraphState;
+                window.workspaceGraphStates = window.workspaceGraphStates || {{}};
+                const main = window.workspaceGraphStates[workspaceId];
+
                 if (!main || !main.nodes || !main.nodes.length) return;
 
                 const bounds = computeBounds(main.nodes, main.nodeWidth, main.nodeHeight);
@@ -84,7 +93,7 @@ class BirdView:
                 edges.exit().remove();
 
                 const nodes = nodeLayer.selectAll("circle")
-                    .data(main.nodes);
+                    .data(main.nodes, d => d.id);
 
                 nodes.enter()
                     .append("circle")
@@ -92,11 +101,11 @@ class BirdView:
                     .merge(nodes)
                     .attr("cx", d => mapX(d.x))
                     .attr("cy", d => mapY(d.y))
-                    .attr("fill", "#4CAF50");
+                    .attr("fill", d => String(d.id) === String(main.selectedNodeId) ? "#4a90e2" : "#4CAF50");
 
                 nodes.exit().remove();
 
-                const t = main.transform;
+                const t = main.transform || {{ x: 0, y: 0, k: 1 }};
 
                 const visibleLeft = (0 - t.x) / t.k;
                 const visibleTop = (0 - t.y) / t.k;
@@ -110,10 +119,20 @@ class BirdView:
                     .attr("height", visibleHeight * scale);
             }}
 
-            window.addEventListener("main-view-updated", renderBirdView);
+            window.addEventListener("main-view-updated", function(event) {{
+                const detail = event.detail || {{}};
+                if (detail.workspaceId !== workspaceId) return;
+                renderBirdView();
+            }});
+
+            window.addEventListener("graph-node-selected", function(event) {{
+                const detail = event.detail || {{}};
+                if (detail.workspaceId !== workspaceId) return;
+                renderBirdView();
+            }});
+
             renderBirdView();
         }})();
-        console.log("Bird view loaded");
         </script>
         """
         return html
