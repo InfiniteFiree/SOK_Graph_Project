@@ -18,11 +18,6 @@
     <button onclick="clearFilters()">Clear</button>
 </div>
 
-<div class="plugins_buttons">
-    <button onclick="togglePluginPanel()">Plugins</button>
-    <button onclick="toggleDataSourcePanel()">Data Sources</button>
-</div>
-
 <div id="plugin-panel" style="display:none">
     <h3>Plugins</h3>
     {% for id, plugin in plugins.items() %}

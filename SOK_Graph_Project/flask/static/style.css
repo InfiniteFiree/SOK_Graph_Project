@@ -175,4 +175,90 @@ body {
 
 .tb-dropdown-menu button:hover {
     background-color: #555;
+/* Workspace Bar */
+
+.workspace-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.workspace-tab-wrap {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: #f7f7f7;
+    overflow: hidden;
+}
+
+.workspace-tab-wrap-active {
+    background: #e6f0ff;
+}
+
+.workspace-tab {
+    padding: 6px 10px 6px 12px;
+    text-decoration: none;
+    color: #222;
+    background: transparent;
+    border: none;
+}
+
+.workspace-delete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    text-decoration: none;
+    color: #666;
+    font-weight: bold;
+    font-size: 16px;
+    border-left: 1px solid #ccc;
+    background: transparent;
+}
+
+.workspace-delete:hover {
+    background: #fbe9e9;
+    color: #b00020;
+}
+
+.workspace-create-panel {
+    margin-top: 10px;
+    margin-bottom: 14px;
+    padding: 10px 12px;
+    border: 1px solid #d9d9d9;
+    border-radius: 8px;
+    background: #fafafa;
+}
+
+.workspace-create-form {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: end;
+}
+
+.workspace-create-form label {
+    display: flex;
+    flex-direction: column;
+    font-size: 13px;
+    color: #333;
+    gap: 4px;
+}
+
+.workspace-create-form select,
+.workspace-create-form button {
+    padding: 6px 8px;
+    border: 1px solid #bbb;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.workspace-create-form button {
+    cursor: pointer;
+    background: #f0f0f0;
+    font-weight: bold;
 }

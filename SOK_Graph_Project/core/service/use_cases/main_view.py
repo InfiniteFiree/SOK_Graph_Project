@@ -22,5 +22,7 @@ class MainView:
 
         return {
             "nodes": nodes,
-            "edges": edges
+            "edges": edges,
+            "directed": bool(self.graph.directed),
+            "cyclic": bool(self.graph.cyclic)
         }
