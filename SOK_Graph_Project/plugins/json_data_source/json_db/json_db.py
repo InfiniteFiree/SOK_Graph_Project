@@ -21,35 +21,35 @@ class JSONRepository:
         normalized = os.path.normpath(file)
         return os.path.abspath(os.path.join(self.data_dir, normalized))
 
-    @staticmethod
-    def graph_to_dict(graph):
-        if not isinstance(graph, Graph):
-            raise TypeError("graph must be an instance of Graph")
+    # @staticmethod
+    # def graph_to_dict(graph):
+    #     if not isinstance(graph, Graph):
+    #         raise TypeError("graph must be an instance of Graph")
 
-        nodes_payload = []
-        for node in graph.nodes:
-            nodes_payload.append(
-                {
-                    "index": node.index,
-                    "data": node.data
-                }
-            )
+    #     nodes_payload = []
+    #     for node in graph.nodes:
+    #         nodes_payload.append(
+    #             {
+    #                 "index": node.index,
+    #                 "data": node.data
+    #             }
+    #         )
 
-        edges_payload = []
-        for edge in graph.edges:
-            edges_payload.append(
-                {
-                    "node1_index": edge.node1.index if edge.node1 is not None else None,
-                    "node2_index": edge.node2.index if edge.node2 is not None else None
-                }
-            )
+    #     edges_payload = []
+    #     for edge in graph.edges:
+    #         edges_payload.append(
+    #             {
+    #                 "node1_index": edge.node1.index if edge.node1 is not None else None,
+    #                 "node2_index": edge.node2.index if edge.node2 is not None else None
+    #             }
+    #         )
 
-        return {
-            "nodes": nodes_payload,
-            "edges": edges_payload,
-            "cyclic": graph.cyclic,
-            "directed": graph.directed
-        }
+    #     return {
+    #         "nodes": nodes_payload,
+    #         "edges": edges_payload,
+    #         "cyclic": graph.cyclic,
+    #         "directed": graph.directed
+    #     }
 
     @staticmethod
     def dict_to_graph(data):
@@ -103,30 +103,30 @@ class JSONRepository:
             directed=data.get("directed")
         )
 
-    @classmethod
-    def graph_from_json_string(cls, json_string):
-        data = json.loads(json_string)
-        return cls.dict_to_graph(data)
+    # @classmethod
+    # def graph_from_json_string(cls, json_string):
+    #     data = json.loads(json_string)
+    #     return cls.dict_to_graph(data)
 
-    def save_to_file(self, graph):
-        try:
-            if not isinstance(graph, Graph):
-                raise TypeError("graph must be an instance of Graph")
+    # def save_to_file(self, graph):
+    #     try:
+    #         if not isinstance(graph, Graph):
+    #             raise TypeError("graph must be an instance of Graph")
 
-            data = self.graph_to_dict(graph)
-            directory = os.path.dirname(self.file)
-            if directory:
-                os.makedirs(directory, exist_ok=True)
+    #         data = self.graph_to_dict(graph)
+    #         directory = os.path.dirname(self.file)
+    #         if directory:
+    #             os.makedirs(directory, exist_ok=True)
 
-            with open(self.file, 'w', encoding='utf-8') as file:
-                json.dump(data, file, indent=4, ensure_ascii=False)
-            return True
-        except (TypeError, ValueError) as e:
-            print(f"Serialization error: {e}")
-            return False
-        except OSError as e:
-            print(f"File write error: {e}")
-            return False
+    #         with open(self.file, 'w', encoding='utf-8') as file:
+    #             json.dump(data, file, indent=4, ensure_ascii=False)
+    #         return True
+    #     except (TypeError, ValueError) as e:
+    #         print(f"Serialization error: {e}")
+    #         return False
+    #     except OSError as e:
+    #         print(f"File write error: {e}")
+    #         return False
 
 
     def read_from_file(self):
