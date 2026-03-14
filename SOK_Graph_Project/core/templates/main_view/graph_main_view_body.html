@@ -89,10 +89,6 @@ async function updateGraph(endpoint, payload) {
     if (result.graph_html !== undefined) {
         const container = document.getElementById("graph-container");
         container.innerHTML = result.graph_html;
-
-        // Scripts inside innerHTML are not executed by the browser.
-        // Re-create and re-run them sequentially, waiting for external
-        // src scripts (e.g. D3) to finish loading before inline scripts run.
         const scripts = Array.from(container.querySelectorAll("script"));
 
         function execNext(i) {

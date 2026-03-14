@@ -1,5 +1,6 @@
 import uuid
 
+from core.service.use_cases.console_window import ConsoleWindow
 from core.service.use_cases.graph_search_filter import GraphSearchFilter
 
 
@@ -14,3 +15,4 @@ class Workspace:
         self.source_path = source_path
         self.search_filter = GraphSearchFilter()
         self.search_filter.set_source_graph(graph)
+        self.cli = ConsoleWindow(self)
