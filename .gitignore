@@ -3,5 +3,5 @@ __pycache__
 SOK_Graph_Project/flask/venv
 SOK_Graph_Project/venv
 __pycache__/
-build/
 *.egg-info/
+build/

@@ -48,15 +48,15 @@ class VisualizationPlugin(Plugin):
     """
 
     @abstractmethod
-    def visualize(self, graph: Graph, **kwargs) -> str:
+    def visualize(self, graph: Graph, **kwargs) -> dict:
         """
-        Visualizes the given `Graph` object and returns the visualization as a string (e.g., HTML).
+        Visualizes the given `Graph` object and returns the visualization as a dictionary.
 
         :param graph: The `Graph` object to be visualized.
         :type graph: Graph
         :param kwargs: Arbitrary keyword arguments for customization of the visualization process.
         :type kwargs: dict
-        :return: A string representation of the visualization (e.g., HTML).
-        :rtype: str
+        :return: A dictionary representing the visualization.
+        :rtype: dict
         """
         pass

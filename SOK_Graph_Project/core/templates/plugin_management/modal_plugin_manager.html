@@ -1,0 +1,128 @@
+<div id="plugin-manager-modal" class="app-modal">
+    <div class="app-modal-content app-modal-large">
+        <div class="app-modal-header">
+            <h3>Plugin Manager</h3>
+            <button type="button"
+                    class="app-modal-close"
+                    onclick="closeModal('plugin-manager-modal')">×</button>
+        </div>
+
+        <div class="app-modal-body">
+            <div class="plugin-manager-section">
+                <h4>Installed Plugins</h4>
+
+                <div class="plugin-manager-columns">
+                    <div>
+                        <h5>Visualization Plugins</h5>
+                        {% for plugin in plugin_summary.visualization %}
+                            <div class="plugin-row">
+                                <div>
+                                    <strong>{{ plugin.name }}</strong><br>
+                                    <small>{{ plugin.identifier }}</small><br>
+                                    <small>
+                                        Distribution:
+                                        {{ plugin.distribution if plugin.distribution else "Unknown" }}
+                                    </small><br>
+                                    <small>
+                                        Status:
+                                        {% if plugin.active %}
+                                            Active
+                                        {% else %}
+                                            Inactive
+                                        {% endif %}
+                                    </small>
+                                </div>
+
+                                <div class="plugin-row-actions">
+                                    {% if plugin.distribution %}
+                                        <form method="post"
+                                              action="{{ url_for('uninstall_plugin') }}"
+                                              onsubmit="return confirm('Uninstall {{ plugin.distribution }}?');">
+                                            <input type="hidden" name="distribution" value="{{ plugin.distribution }}">
+                                            <button type="submit" class="danger-btn">Uninstall</button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% else %}
+                            <p>No visualization plugins installed.</p>
+                        {% endfor %}
+                    </div>
+
+                    <div>
+                        <h5>Data Source Plugins</h5>
+                        {% for plugin in plugin_summary.data_source %}
+                            <div class="plugin-row">
+                                <div>
+                                    <strong>{{ plugin.name }}</strong><br>
+                                    <small>{{ plugin.identifier }}</small><br>
+                                    <small>
+                                        Distribution:
+                                        {{ plugin.distribution if plugin.distribution else "Unknown" }}
+                                    </small><br>
+                                    <small>
+                                        Status:
+                                        {% if plugin.active %}
+                                            Active
+                                        {% else %}
+                                            Inactive
+                                        {% endif %}
+                                    </small>
+                                </div>
+
+                                <div class="plugin-row-actions">
+                                    {% if plugin.distribution %}
+                                        <form method="post"
+                                              action="{{ url_for('uninstall_plugin') }}"
+                                              onsubmit="return confirm('Uninstall {{ plugin.distribution }}?');">
+                                            <input type="hidden" name="distribution" value="{{ plugin.distribution }}">
+                                            <button type="submit" class="danger-btn">Uninstall</button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% else %}
+                            <p>No data source plugins installed.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <hr>
+
+            <div class="plugin-manager-section">
+                <h4>Install Plugin</h4>
+
+                <form method="post" action="{{ url_for('install_plugin') }}" class="plugin-install-form">
+                    <label>
+                        Local plugin path
+                        <input type="text" name="plugin_path" placeholder="./plugins/my_plugin" required>
+                    </label>
+
+                    <label>
+                        Install mode
+                        <select name="editable">
+                            <option value="true" selected>Editable (-e)</option>
+                            <option value="false">Normal install</option>
+                        </select>
+                    </label>
+
+                    <div class="modal-actions">
+                        <button type="submit">Install Plugin</button>
+                    </div>
+                </form>
+            </div>
+
+            <hr>
+
+            <div class="plugin-manager-section">
+                <form method="post" action="{{ url_for('refresh_plugins') }}">
+                    <div class="modal-actions">
+                        <button type="submit">Save / Refresh Available Plugins</button>
+                        <button type="button" onclick="closeModal('plugin-manager-modal')">Close</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

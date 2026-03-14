@@ -1,0 +1,61 @@
+<div id="open-workspace-modal" class="app-modal">
+    <div class="app-modal-content">
+        <div class="app-modal-header">
+            <h3>Open / Create Workspace</h3>
+            <button type="button" class="app-modal-close" onclick="closeModal('open-workspace-modal')">×</button>
+        </div>
+
+        <div class="app-modal-body">
+            {% if workspace_error %}
+                <div class="workspace-error-box">
+                    {{ workspace_error }}
+                </div>
+            {% endif %}
+
+            <div class="workspace-create-panel">
+                <form action="{{ url_for('create_workspace') }}" method="get" class="workspace-create-form">
+                    <label>
+                        Data Source
+                        <select name="data_source">
+                            {% for key, plugin in data_plugins.items() %}
+                                <option value="{{ key }}"
+                                    {% if key == selected_data_source %}selected{% endif %}>
+                                    {{ plugin.name() }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </label>
+
+                    <label>
+                        Visualizer
+                        <select name="type">
+                            {% for key, plugin in plugins.items() %}
+                                <option value="{{ key }}"
+                                    {% if key == selected_visualizer %}selected{% endif %}>
+                                    {{ plugin.name() }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </label>
+
+                    <label style="min-width: 360px;">
+                        Source Path
+                        <select name="source_path">
+                            {% for target in load_targets %}
+                                <option value="{{ target.value }}"
+                                    {% if target.value == selected_source_path %}selected{% endif %}>
+                                    {{ target.label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </label>
+
+                    <div class="modal-actions">
+                        <button type="submit">+ Create Workspace</button>
+                        <button type="button" onclick="closeModal('open-workspace-modal')">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

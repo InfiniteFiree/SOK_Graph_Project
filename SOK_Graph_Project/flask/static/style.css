@@ -265,6 +265,116 @@ body {
     font-weight: bold;
 }
 
+/* Modals */
+.app-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.app-modal.open {
+    display: flex;
+}
+
+.app-modal-content {
+    background: white;
+    border-radius: 12px;
+    width: min(900px, 100%);
+    max-height: 90vh;
+    overflow: auto;
+    box-shadow: 0 10px 35px rgba(0,0,0,0.2);
+}
+
+.app-modal-large {
+    width: min(1100px, 100%);
+}
+
+.app-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #ddd;
+}
+
+.app-modal-body {
+    padding: 20px;
+}
+
+.app-modal-close {
+    border: none;
+    background: transparent;
+    font-size: 26px;
+    cursor: pointer;
+}
+
+.workspace-error-box {
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border: 1px solid #d9534f;
+    border-radius: 8px;
+    background: #fdf2f2;
+    color: #a94442;
+}
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+}
+
+.plugin-manager-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.plugin-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    background: #fafafa;
+}
+
+.plugin-row-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.plugin-install-form {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: end;
+}
+
+.plugin-install-form input,
+.plugin-install-form select {
+    min-width: 220px;
+}
+
+.danger-btn {
+    background: #c9302c;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+/* CLI */
+
 .cli-panel {
     height: 100%;
     display: flex;
@@ -341,4 +451,15 @@ body {
 
 .cli-input-row button:hover {
     background: #e7e7e7;
+}
+
+/* Placeholders */
+.tree-view-placeholder,
+.main-view-placeholder,
+.bird-view-placeholder {
+    padding: 12px;
+    border: 1px dashed #bbb;
+    border-radius: 8px;
+    background: #fafafa;
+    color: #555;
 }

@@ -5,18 +5,40 @@
 {% endblock %}
 
 {% block tree %}
-    {% include "tree_view/graph_tree_view_body.html" %}
+    {% if not no_workspace %}
+        {% include "tree_view/graph_tree_view_body.html" %}
+    {% else %}
+        <div class="tree-view-placeholder">
+            <p>No workspace loaded.</p>
+        </div>
+    {% endif %}
 {% endblock %}
 
 {% block content %}
 
     {% include "workspace_bar/graph_workspace_bar_body.html" %}
-    {% include "main_view/graph_main_view_body.html" %}
+
+    {% if not no_workspace %}
+        {% include "main_view/graph_main_view_body.html" %}
+    {% else %}
+        <div class="main-view-placeholder">
+            <p>No workspace loaded. Choose a source file/folder above and create a workspace.</p>
+        </div>
+    {% endif %}
+
+    {% include "workspace_bar/modal_open_workspace.html" %}
+    {% include "plugin_management/modal_plugin_manager.html" %}
 
 {% endblock %}
 
 {% block bird %}
-    {% include "bird_view/graph_bird_view_body.html" %}
+    {% if not no_workspace %}
+        {% include "bird_view/graph_bird_view_body.html" %}
+    {% else %}
+        <div class="bird-view-placeholder">
+            <p>No workspace loaded.</p>
+        </div>
+    {% endif %}
 {% endblock %}
 
 {% block cli %}

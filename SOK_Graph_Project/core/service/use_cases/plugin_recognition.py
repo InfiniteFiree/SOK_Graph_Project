@@ -1,70 +1,218 @@
-from typing import List
+from dataclasses import dataclass
+from importlib.metadata import entry_points
+from typing import Dict, Optional
 import os
-import sys
-import importlib
 
-from api.graph.api.services.plugin import Plugin, DataSourcePlugin, VisualizationPlugin
-
-PROJECT_ROOT = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "..")
+from api.build.lib.graph.api.services.plugin import (
+    Plugin,
+    DataSourcePlugin,
+    VisualizationPlugin,
 )
 
-PLUGIN_FOLDER = os.path.join(PROJECT_ROOT, "plugins")
-PARENT_FOLDER = PROJECT_ROOT
 
-# Dodaj root u sys.path ako već nije
-if PARENT_FOLDER not in sys.path:
-    sys.path.insert(0, PARENT_FOLDER)
+DATA_SOURCE_GROUP = "sok_graph.data_sources"
+VISUALIZATION_GROUP = "sok_graph.visualizers"
 
 
-class PluginService(object):
+@dataclass
+class PluginRecord:
+    identifier: str
+    name: str
+    category: str
+    instance: Plugin
+    entry_point_value: str
+    distribution: Optional[str]
+    active: bool = True
 
+
+class PluginService:
     def __init__(self):
-        self.plugins = {
+        self.plugins: Dict[str, Dict[str, PluginRecord]] = {
             "visualization": {},
-            "data_source": {}
+            "data_source": {},
         }
 
-    def load_plugins(self):
+    # --------------------------------------------------
+    # DISCOVERY
+    # --------------------------------------------------
 
-        # očisti prethodne plugine (korisno kod Flask debug reload)
+    def refresh_plugins(self):
+        """
+        Rebuild plugin registry from installed entry points.
+        Keeps activation state for already-known plugins when possible.
+        """
+        previous_states = self._snapshot_activation_states()
+
         self.plugins["visualization"].clear()
         self.plugins["data_source"].clear()
 
-        # Prođi kroz sve .py fajlove u PLUGIN_FOLDER i podfolderima
-        for root, _, files in os.walk(PLUGIN_FOLDER):
-            for file in files:
-                if file.endswith(".py") and file not in ["__init__.py"]:
-                    rel_path = os.path.relpath(os.path.join(root, file), PARENT_FOLDER)
-                    module_name = rel_path[:-3].replace(os.sep, ".")
+        self._load_entry_point_group(VISUALIZATION_GROUP, "visualization", previous_states)
+        self._load_entry_point_group(DATA_SOURCE_GROUP, "data_source", previous_states)
 
-                    try:
-                        if module_name in sys.modules:
-                            module = importlib.reload(sys.modules[module_name])
-                        else:
-                            module = importlib.import_module(module_name)
-                    except Exception as e:
-                        print(f"[plugin_recognition] Warning: Failed to import {module_name}: {e}")
-                        continue
+        return self.get_plugins()
 
-                    # traži sve klase koje nasledjuju Plugin
-                    for attr in dir(module):
-                        obj = getattr(module, attr)
+    def _load_entry_point_group(self, group_name: str, category: str, previous_states: Dict[str, bool]):
+        try:
+            eps = entry_points(group=group_name)
+        except TypeError:
+            # compatibility fallback for older Python versions
+            eps = entry_points().get(group_name, [])
 
-                        if isinstance(obj, type) and issubclass(obj, Plugin) and obj != Plugin:
-                            try:
-                                instance = obj()
-                            except TypeError:
-                                continue
+        for ep in eps:
+            try:
+                loaded = ep.load()
+                instance = loaded()
+            except Exception as e:
+                print(f"[plugin_discovery] Warning: failed to load entry point '{ep.name}' from '{ep.value}': {e}")
+                continue
 
-                            if isinstance(instance, VisualizationPlugin):
-                                self.plugins["visualization"][instance.identifier()] = instance
+            if not isinstance(instance, Plugin):
+                print(f"[plugin_discovery] Warning: '{ep.name}' is not a Plugin subclass.")
+                continue
 
-                            elif isinstance(instance, DataSourcePlugin):
-                                self.plugins["data_source"][instance.identifier()] = instance
+            if category == "visualization" and not isinstance(instance, VisualizationPlugin):
+                print(f"[plugin_discovery] Warning: '{ep.name}' is not a VisualizationPlugin.")
+                continue
 
+            if category == "data_source" and not isinstance(instance, DataSourcePlugin):
+                print(f"[plugin_discovery] Warning: '{ep.name}' is not a DataSourcePlugin.")
+                continue
+
+            try:
+                plugin_id = instance.identifier()
+                plugin_name = instance.name()
+            except Exception as e:
+                print(f"[plugin_discovery] Warning: plugin metadata failed for '{ep.name}': {e}")
+                continue
+
+            dist_name = None
+            try:
+                if ep.dist:
+                    dist_name = ep.dist.metadata["Name"]
+            except Exception:
+                dist_name = None
+
+            active = previous_states.get(f"{category}:{plugin_id}", True)
+
+            self.plugins[category][plugin_id] = PluginRecord(
+                identifier=plugin_id,
+                name=plugin_name,
+                category=category,
+                instance=instance,
+                entry_point_value=ep.value,
+                distribution=dist_name,
+                active=active,
+            )
+
+    def _snapshot_activation_states(self) -> Dict[str, bool]:
+        snapshot = {}
+
+        for category, category_plugins in self.plugins.items():
+            for plugin_id, record in category_plugins.items():
+                snapshot[f"{category}:{plugin_id}"] = record.active
+
+        return snapshot
+
+    # --------------------------------------------------
+    # ACCESSORS
+    # --------------------------------------------------
+
+    def get_plugins(self):
+        """
+        Returns raw PluginRecord registry.
+        """
         return self.plugins
-    
+
+    def get_plugin_record(self, category: str, plugin_id: str) -> PluginRecord:
+        record = self.plugins.get(category, {}).get(plugin_id)
+
+        if record is None:
+            raise ValueError(f"Unknown {category} plugin: {plugin_id}")
+
+        return record
+
+    def get_plugin(self, category: str, plugin_id: str, active_only: bool = True) -> Plugin:
+        record = self.get_plugin_record(category, plugin_id)
+
+        if active_only and not record.active:
+            raise ValueError(f"Plugin '{plugin_id}' is currently deactivated.")
+
+        return record.instance
+
+    def get_active_plugins(self):
+        result = {
+            "visualization": {},
+            "data_source": {},
+        }
+
+        for category in result.keys():
+            for plugin_id, record in self.plugins[category].items():
+                if record.active:
+                    result[category][plugin_id] = record.instance
+
+        return result
+
+    def get_plugin_summary(self):
+        result = {
+            "visualization": [],
+            "data_source": [],
+        }
+
+        for category in result.keys():
+            for plugin_id, record in sorted(self.plugins[category].items(), key=lambda x: x[1].name.lower()):
+                result[category].append({
+                    "identifier": record.identifier,
+                    "name": record.name,
+                    "category": record.category,
+                    "distribution": record.distribution,
+                    "entry_point": record.entry_point_value,
+                    "active": record.active,
+                })
+
+        return result
+
+    # --------------------------------------------------
+    # ACTIVATION / DEACTIVATION
+    # --------------------------------------------------
+
+    def activate_plugin(self, category: str, plugin_id: str):
+        record = self.get_plugin_record(category, plugin_id)
+
+        if record.active:
+            return False
+
+        if hasattr(record.instance, "activate") and callable(record.instance.activate):
+            record.instance.activate()
+
+        record.active = True
+        return True
+
+    def deactivate_plugin(self, category: str, plugin_id: str):
+        record = self.get_plugin_record(category, plugin_id)
+
+        if not record.active:
+            return False
+
+        if hasattr(record.instance, "deactivate") and callable(record.instance.deactivate):
+            record.instance.deactivate()
+
+        record.active = False
+        return True
+
+    def toggle_plugin(self, category: str, plugin_id: str):
+        record = self.get_plugin_record(category, plugin_id)
+
+        if record.active:
+            self.deactivate_plugin(category, plugin_id)
+            return False
+
+        self.activate_plugin(category, plugin_id)
+        return True
+
+    # --------------------------------------------------
+    # SOURCE TARGETS
+    # --------------------------------------------------
+
     def list_plugin_load_targets(self, project_root: str):
         """
         Returns loadable files/folders under plugins/.
@@ -76,30 +224,29 @@ class PluginService(object):
         if not os.path.isdir(plugins_root):
             return results
 
-        for root, dirs, files in os.walk(plugins_root):
+        for root, _, files in os.walk(plugins_root):
             rel_root = os.path.relpath(root, project_root).replace("\\", "/")
 
-            # CSV folder target
             if "nodes.csv" in files and "edges.csv" in files:
                 results.append({
                     "value": rel_root,
                     "label": f"{rel_root}/  [CSV folder]"
                 })
 
-            # Single-file targets
             for filename in files:
                 lower = filename.lower()
-                if (lower.endswith(".csv") or lower.endswith(".json")) and filename not in ["nodes.csv", "edges.csv", "dir.json"]:
-                    rel_path = os.path.join(rel_root, filename).replace("\\", "/")
-                    results.append({
-                        "value": rel_path,
-                        "label": rel_path
-                    })
+                if lower.endswith(".csv") or lower.endswith(".json"):
+                    if filename not in ["nodes.csv", "edges.csv", "dir.json"]:
+                        rel_path = os.path.join(rel_root, filename).replace("\\", "/")
+                        results.append({
+                            "value": rel_path,
+                            "label": rel_path
+                        })
 
         results.sort(key=lambda x: x["label"].lower())
         return results
-    
-    def detect_source_kind(self, project_root, source_path):
+
+    def detect_source_kind(self, project_root: str, source_path: str):
         """
         Detects whether the selected source path is:
         - csv_file
@@ -128,8 +275,7 @@ class PluginService(object):
 
         return "unknown"
 
-
-    def validate_data_source_choice(self, selected_data_source, source_kind):
+    def validate_data_source_choice(self, selected_data_source: str, source_kind: str):
         """
         Raises ValueError if the chosen plugin clearly does not match the source kind.
         """
@@ -142,18 +288,16 @@ class PluginService(object):
             raise ValueError(
                 "The selected source is a JSON file, so you must use the JSON data source plugin."
             )
-        
-    def load_graph_from_selected_source(self, plugins, selected_data_source, source_path, project_root):
+
+    def load_graph_from_selected_source(self, selected_data_source: str, source_path: str, project_root: str):
         source_kind = self.detect_source_kind(project_root, source_path)
         self.validate_data_source_choice(selected_data_source, source_kind)
 
         abs_source_path = os.path.abspath(os.path.join(project_root, source_path))
 
-        ds_plugin = plugins["data_source"].get(selected_data_source)
-        if ds_plugin:
-            try:
-                return ds_plugin.load(source_path=abs_source_path)
-            except TypeError:
-                return ds_plugin.load(abs_source_path)
+        ds_plugin = self.get_plugin("data_source", selected_data_source, active_only=True)
 
-        raise ValueError(f"Unknown data source plugin: {selected_data_source}")
+        try:
+            return ds_plugin.load(source_path=abs_source_path)
+        except TypeError:
+            return ds_plugin.load(abs_source_path)
