@@ -203,7 +203,7 @@ def apply_filter():
         else:
             return jsonify({"error": "No visualization plugins loaded"}), 400
 
-    graph_html = visualizer.visualize(filtered_graph)
+    graph_html = visualizer.visualize(filtered_graph, workspace_id=workspace.id)
     return jsonify({"graph_html": graph_html})
 
 
@@ -234,7 +234,7 @@ def clear_filters():
         else:
             return jsonify({"error": "No visualization plugins loaded"}), 400
 
-    graph_html = visualizer.visualize(filtered_graph)
+    graph_html = visualizer.visualize(filtered_graph, workspace_id=workspace.id)
     return jsonify({"graph_html": graph_html})
 
 
@@ -259,7 +259,7 @@ def search_graph():
         else:
             return jsonify({"error": "No visualization plugins loaded"}), 400
 
-    graph_html = visualizer.visualize(result_graph)
+    graph_html = visualizer.visualize(result_graph, workspace_id=workspace.id)
     return jsonify({"graph_html": graph_html})
 
 if __name__ == "__main__":

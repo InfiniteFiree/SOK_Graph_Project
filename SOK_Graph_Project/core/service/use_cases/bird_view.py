@@ -29,6 +29,8 @@ class BirdView:
                 .append("svg")
                 .attr("width", bW)
                 .attr("height", bH)
+                .style("width", "100%")
+                .style("height", "100%")
                 .style("background", "#1a1a2e")
                 .style("border-radius", "4px")
                 .style("border", "1px solid #444");
@@ -37,17 +39,37 @@ class BirdView:
             const nodeLayer = bSvg.append("g");
 
             const viewport = bSvg.append("rect")
-                .attr("fill", "none")
+                .attr("fill", "rgba(240,165,0,0.10)")
                 .attr("stroke", "#f0a500")
                 .attr("stroke-width", 1.5)
-                .attr("stroke-dasharray", "4,2");
+                .attr("stroke-dasharray", "4,2")
+                .style("pointer-events", "none");
 
-            function computeBounds(nodes, nodeWidth, nodeHeight) {{
+            function isFiniteNumber(v) {{
+                return Number.isFinite(v);
+            }}
+
+            function clamp(value, min, max) {{
+                return Math.max(min, Math.min(max, value));
+            }}
+
+            function computeBounds(nodes, nodeRadius) {{
+                const validNodes = nodes.filter(d => isFiniteNumber(d.x) && isFiniteNumber(d.y));
+
+                if (!validNodes.length) {{
+                    return {{
+                        minX: 0,
+                        maxX: 1,
+                        minY: 0,
+                        maxY: 1
+                    }};
+                }}
+
                 return {{
-                    minX: d3.min(nodes, d => d.x) - nodeWidth / 2,
-                    maxX: d3.max(nodes, d => d.x) + nodeWidth / 2,
-                    minY: d3.min(nodes, d => d.y) - nodeHeight / 2,
-                    maxY: d3.max(nodes, d => d.y) + nodeHeight / 2
+                    minX: d3.min(validNodes, d => d.x) - nodeRadius,
+                    maxX: d3.max(validNodes, d => d.x) + nodeRadius,
+                    minY: d3.min(validNodes, d => d.y) - nodeRadius,
+                    maxY: d3.max(validNodes, d => d.y) + nodeRadius
                 }};
             }}
 
@@ -57,7 +79,9 @@ class BirdView:
 
                 if (!main || !main.nodes || !main.nodes.length) return;
 
-                const bounds = computeBounds(main.nodes, main.nodeWidth, main.nodeHeight);
+                const nodeRadius = Math.max(main.nodeRadius || 6, 1);
+                const bounds = computeBounds(main.nodes, nodeRadius);
+
                 const graphWidth = Math.max(bounds.maxX - bounds.minX, 1);
                 const graphHeight = Math.max(bounds.maxY - bounds.minY, 1);
 
@@ -77,8 +101,14 @@ class BirdView:
                     return offsetY + (y - bounds.minY) * scale;
                 }}
 
+                const validEdges = (main.edges || []).filter(d =>
+                    d.source && d.target &&
+                    isFiniteNumber(d.source.x) && isFiniteNumber(d.source.y) &&
+                    isFiniteNumber(d.target.x) && isFiniteNumber(d.target.y)
+                );
+
                 const edges = edgeLayer.selectAll("line")
-                    .data(main.edges);
+                    .data(validEdges, d => `${{d.source.id}}-${{d.target.id}}`);
 
                 edges.enter()
                     .append("line")
@@ -92,16 +122,41 @@ class BirdView:
 
                 edges.exit().remove();
 
+                const validNodes = (main.nodes || []).filter(d =>
+                    isFiniteNumber(d.x) && isFiniteNumber(d.y)
+                );
+
                 const nodes = nodeLayer.selectAll("circle")
-                    .data(main.nodes, d => d.id);
+                    .data(validNodes, d => d.id);
 
                 nodes.enter()
                     .append("circle")
-                    .attr("r", 4)
+                    .attr("r", 5)
+                    .style("cursor", "pointer")
                     .merge(nodes)
                     .attr("cx", d => mapX(d.x))
                     .attr("cy", d => mapY(d.y))
-                    .attr("fill", d => String(d.id) === String(main.selectedNodeId) ? "#4a90e2" : "#4CAF50");
+                    .attr("fill", d =>
+                        String(d.id) === String(main.selectedNodeId) ? "#4a90e2" : "#4CAF50"
+                    )
+                    .attr("stroke", d =>
+                        String(d.id) === String(main.selectedNodeId) ? "#dcecff" : "#1d1d1d"
+                    )
+                    .attr("stroke-width", d =>
+                        String(d.id) === String(main.selectedNodeId) ? 2 : 1
+                    )
+                    .on("click", function(event, d) {{
+                        event.stopPropagation();
+
+                        window.dispatchEvent(new CustomEvent("graph-node-selected", {{
+                            detail: {{
+                                workspaceId: workspaceId,
+                                nodeId: d.id,
+                                source: "bird-view",
+                                panTo: true
+                            }}
+                        }}));
+                    }});
 
                 nodes.exit().remove();
 
@@ -112,11 +167,22 @@ class BirdView:
                 const visibleWidth = main.width / t.k;
                 const visibleHeight = main.height / t.k;
 
+                let vx = mapX(visibleLeft);
+                let vy = mapY(visibleTop);
+                let vw = visibleWidth * scale;
+                let vh = visibleHeight * scale;
+
+                vw = Math.max(8, vw);
+                vh = Math.max(8, vh);
+
+                vx = clamp(vx, 0, Math.max(0, bW - vw));
+                vy = clamp(vy, 0, Math.max(0, bH - vh));
+
                 viewport
-                    .attr("x", mapX(visibleLeft))
-                    .attr("y", mapY(visibleTop))
-                    .attr("width", visibleWidth * scale)
-                    .attr("height", visibleHeight * scale);
+                    .attr("x", vx)
+                    .attr("y", vy)
+                    .attr("width", Math.min(vw, bW))
+                    .attr("height", Math.min(vh, bH));
             }}
 
             window.addEventListener("main-view-updated", function(event) {{
