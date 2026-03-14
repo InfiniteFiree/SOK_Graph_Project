@@ -264,3 +264,81 @@ body {
     background: #f0f0f0;
     font-weight: bold;
 }
+
+.cli-panel {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.cli-feedback {
+    padding: 6px 8px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 13px;
+    background: #fafafa;
+    color: #222;
+}
+
+.cli-feedback-error {
+    border-color: #d9534f;
+    background: #fdf2f2;
+    color: #a94442;
+}
+
+.cli-history {
+    flex: 1;
+    min-height: 62px;
+    max-height: 92px;
+    overflow-y: auto;
+    border: 1px solid #1f1f1f;
+    border-radius: 6px;
+    background: #0f1115;
+    padding: 8px;
+}
+
+.cli-history-item,
+.cli-history-empty {
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.cli-history-item {
+    color: #9bf5b5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    padding: 2px 0;
+}
+
+.cli-history-empty {
+    color: #91a0b0;
+}
+
+.cli-input-row {
+    display: flex;
+    gap: 8px;
+}
+
+.cli-input-row input {
+    flex: 1;
+    border: 1px solid #aaa;
+    border-radius: 6px;
+    padding: 8px;
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 13px;
+}
+
+.cli-input-row button {
+    border: 1px solid #999;
+    border-radius: 6px;
+    background: #f0f0f0;
+    font-weight: 600;
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+.cli-input-row button:hover {
+    background: #e7e7e7;
+}
