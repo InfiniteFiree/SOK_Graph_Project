@@ -36,6 +36,19 @@ app.jinja_loader = ChoiceLoader([
 ])
 
 
+def resolve_visualizer(selected_visualizer):
+    visualizer = plugins["visualization"].get(selected_visualizer)
+
+    if visualizer is None:
+        if plugins["visualization"]:
+            visualizer = next(iter(plugins["visualization"].values()))
+            selected_visualizer = visualizer.identifier()
+        else:
+            return None, selected_visualizer
+
+    return visualizer, selected_visualizer
+
+
 @app.route("/workspace/create")
 def create_workspace():
     selected_data_source = request.args.get("data_source", "csv")
@@ -70,6 +83,8 @@ def create_workspace():
             load_targets=load_targets,
             workspaces=workspace_manager.list_workspaces(),
             active_workspace_id=active_workspace.id if active_workspace else None,
+            cli_history=active_workspace.cli.command_history if active_workspace else [],
+            cli_feedback=None,
             workspace_error=str(e),
         )
 
@@ -143,15 +158,9 @@ def index():
     selected_data_source = active_workspace.data_source
     selected_source_path = active_workspace.source_path
 
-    visualizer = plugins["visualization"].get(selected_visualizer)
-
+    visualizer, selected_visualizer = resolve_visualizer(selected_visualizer)
     if visualizer is None:
-        if plugins["visualization"]:
-            visualizer = next(iter(plugins["visualization"].values()))
-            selected_visualizer = visualizer.identifier()
-            print(f"[app] Plugin '{active_workspace.visualizer_type}' nije pronađen, koristim prvi dostupan: '{selected_visualizer}'")
-        else:
-            return "No visualization plugins loaded"
+        return "No visualization plugins loaded"
 
     graph_html = visualizer.visualize(active_workspace.search_filter.filtered_graph, workspace_id=active_workspace.id)
 
@@ -176,8 +185,51 @@ def index():
         load_targets=load_targets,
         workspaces=workspace_manager.list_workspaces(),
         active_workspace_id=active_workspace.id,
+        cli_history=active_workspace.cli.command_history,
+        cli_feedback=None,
         workspace_error=None,
     )
+
+
+@app.route("/cli/execute", methods=["POST"])
+def execute_cli_command():
+    payload = request.get_json(silent=True) or {}
+    workspace_id = payload.get("workspace_id")
+    workspace = workspace_manager.get_workspace(workspace_id) if workspace_id else workspace_manager.get_active()
+
+    if workspace is None:
+        return jsonify({"error": "No active workspace"}), 400
+
+    selected_visualizer = payload.get("type", workspace.visualizer_type)
+    visualizer, selected_visualizer = resolve_visualizer(selected_visualizer)
+    if visualizer is None:
+        return jsonify({"error": "No visualization plugins loaded"}), 400
+
+    command = payload.get("command", "")
+
+    try:
+        result = workspace.cli.execute(command)
+        graph_for_view = result.get("display_graph", workspace.search_filter.filtered_graph)
+        message = result.get("message", "Command executed")
+    except ValueError as e:
+        graph_for_view = workspace.search_filter.filtered_graph
+        message = str(e)
+        response_code = 400
+    else:
+        response_code = 200
+
+    graph_html = visualizer.visualize(graph_for_view, workspace_id=workspace.id)
+    tree_view_html = TreeView(graph_for_view).render(workspace_id=workspace.id)
+    bird_view_html = BirdView().render(workspace_id=workspace.id)
+
+    return jsonify({
+        "graph_html": graph_html,
+        "tree_view_html": tree_view_html,
+        "bird_view_html": bird_view_html,
+        "cli_history": workspace.cli.command_history,
+        "cli_feedback": message,
+        "selected_visualizer": selected_visualizer,
+    }), response_code
 
 
 @app.route("/apply_filter", methods=["POST"])
@@ -196,12 +248,9 @@ def apply_filter():
 
     filtered_graph = workspace.search_filter.filter(attribute, operator, value)
 
-    visualizer = plugins["visualization"].get(selected_visualizer)
+    visualizer, _ = resolve_visualizer(selected_visualizer)
     if visualizer is None:
-        if plugins["visualization"]:
-            visualizer = next(iter(plugins["visualization"].values()))
-        else:
-            return jsonify({"error": "No visualization plugins loaded"}), 400
+        return jsonify({"error": "No visualization plugins loaded"}), 400
 
     graph_html = visualizer.visualize(filtered_graph, workspace_id=workspace.id)
     return jsonify({"graph_html": graph_html})
@@ -227,12 +276,9 @@ def clear_filters():
     workspace.graph = fresh_graph
     filtered_graph = workspace.search_filter.clear_filters(fresh_graph)
 
-    visualizer = plugins["visualization"].get(selected_visualizer)
+    visualizer, _ = resolve_visualizer(selected_visualizer)
     if visualizer is None:
-        if plugins["visualization"]:
-            visualizer = next(iter(plugins["visualization"].values()))
-        else:
-            return jsonify({"error": "No visualization plugins loaded"}), 400
+        return jsonify({"error": "No visualization plugins loaded"}), 400
 
     graph_html = visualizer.visualize(filtered_graph, workspace_id=workspace.id)
     return jsonify({"graph_html": graph_html})
@@ -252,12 +298,9 @@ def search_graph():
 
     result_graph = workspace.search_filter.search(query)
 
-    visualizer = plugins["visualization"].get(selected_visualizer)
+    visualizer, _ = resolve_visualizer(selected_visualizer)
     if visualizer is None:
-        if plugins["visualization"]:
-            visualizer = next(iter(plugins["visualization"].values()))
-        else:
-            return jsonify({"error": "No visualization plugins loaded"}), 400
+        return jsonify({"error": "No visualization plugins loaded"}), 400
 
     graph_html = visualizer.visualize(result_graph, workspace_id=workspace.id)
     return jsonify({"graph_html": graph_html})

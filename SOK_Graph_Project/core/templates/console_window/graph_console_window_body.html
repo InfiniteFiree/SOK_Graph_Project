@@ -1,0 +1,150 @@
+<div class="cli-panel">
+    <h3>CLI</h3>
+
+    <div id="cli-feedback" class="cli-feedback">
+        {% if cli_feedback %}
+            {{ cli_feedback }}
+        {% else %}
+            Enter a command and press Execute.
+        {% endif %}
+    </div>
+
+    <div id="cli-history" class="cli-history" aria-label="Command history">
+        {% if cli_history %}
+            {% for command in cli_history %}
+                <div class="cli-history-item">{{ command }}</div>
+            {% endfor %}
+        {% else %}
+            <div class="cli-history-empty">No commands yet.</div>
+        {% endif %}
+    </div>
+
+    <div class="cli-input-row">
+        <input id="cli-command-input" type="text" placeholder="create_node id=50 attr1=name1" autocomplete="off">
+        <button type="button" onclick="executeCliCommand()">Execute</button>
+    </div>
+</div>
+
+<script>
+function renderScriptsInContainer(container) {
+    const scripts = Array.from(container.querySelectorAll("script"));
+
+    function execNext(i) {
+        if (i >= scripts.length) return;
+
+        const oldScript = scripts[i];
+        const script = document.createElement("script");
+
+        if (oldScript.src) {
+            script.src = oldScript.src;
+            script.onload = () => execNext(i + 1);
+            script.onerror = () => execNext(i + 1);
+            document.body.appendChild(script);
+        } else {
+            script.textContent = oldScript.textContent;
+            document.body.appendChild(script);
+            execNext(i + 1);
+        }
+
+        oldScript.remove();
+    }
+
+    execNext(0);
+}
+
+function setCliFeedback(message, isError) {
+    const feedback = document.getElementById("cli-feedback");
+    feedback.textContent = message;
+    feedback.classList.toggle("cli-feedback-error", !!isError);
+}
+
+function renderCliHistory(history) {
+    const historyContainer = document.getElementById("cli-history");
+    historyContainer.innerHTML = "";
+
+    if (!Array.isArray(history) || history.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "cli-history-empty";
+        empty.textContent = "No commands yet.";
+        historyContainer.appendChild(empty);
+        return;
+    }
+
+    history.forEach((command) => {
+        const item = document.createElement("div");
+        item.className = "cli-history-item";
+        item.textContent = command;
+        historyContainer.appendChild(item);
+    });
+
+    historyContainer.scrollTop = historyContainer.scrollHeight;
+}
+
+async function executeCliCommand() {
+    const commandInput = document.getElementById("cli-command-input");
+    const command = commandInput.value.trim();
+
+    if (!command) {
+        setCliFeedback("Command cannot be empty", true);
+        return;
+    }
+
+    const payload = {
+        command: command,
+        type: getSelectedVisualizer(),
+        workspace_id: getActiveWorkspaceId()
+    };
+
+    const response = await fetch("/cli/execute", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+    });
+
+    let result = {};
+    try {
+        result = await response.json();
+    } catch (e) {
+        setCliFeedback("Invalid response from server", true);
+        return;
+    }
+
+    renderCliHistory(result.cli_history || []);
+    setCliFeedback(result.cli_feedback || "Command processed", !response.ok);
+
+    if (result.graph_html !== undefined) {
+        const graphContainer = document.getElementById("graph-container");
+        graphContainer.innerHTML = result.graph_html;
+        renderScriptsInContainer(graphContainer);
+    }
+
+    if (result.tree_view_html !== undefined) {
+        const treeContainer = document.getElementById("tree-view-content");
+        treeContainer.innerHTML = result.tree_view_html;
+        renderScriptsInContainer(treeContainer);
+    }
+
+    if (result.bird_view_html !== undefined) {
+        const birdContainer = document.getElementById("bird-canvas");
+        birdContainer.innerHTML = result.bird_view_html;
+        renderScriptsInContainer(birdContainer);
+    }
+
+    commandInput.value = "";
+    commandInput.focus();
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+    const commandInput = document.getElementById("cli-command-input");
+    if (!commandInput) return;
+
+    commandInput.addEventListener("keydown", function(event) {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            executeCliCommand();
+        }
+    });
+});
+</script>
