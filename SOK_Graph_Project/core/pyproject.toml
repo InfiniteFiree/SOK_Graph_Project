@@ -3,11 +3,17 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "sok-graph-api"
+name = "sok-graph-core"
 version = "1.0.0"
-description = "Shared API and plugin interfaces for the graph project"
+description = "Core services and UI logic for the graph project"
 requires-python = ">=3.10"
+dependencies = [
+    "sok-graph-api"
+]
+
+[tool.setuptools]
+include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["graph*"]
+include = ["service*"]

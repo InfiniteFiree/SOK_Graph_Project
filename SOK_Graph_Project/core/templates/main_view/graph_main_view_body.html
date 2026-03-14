@@ -1,3 +1,5 @@
+<link rel="stylesheet" href="{{ url_for('core_main_view_assets', filename='main_view.css') }}">
+
 <div class="toolbar">
     <input type="text" id="search-input" placeholder="Search graph...">
 
@@ -42,7 +44,16 @@
     {% endfor %}
 </div>
 
+<div id="graph-container">
+    {% if graph_html %}
+        {{ graph_html | safe }}
+    {% endif %}
+</div>
+
 <script>
+const currentWorkspaceId = "{{ active_workspace_id or '' }}";
+const currentSourcePath = "{{ selected_source_path or '' }}";
+
 function togglePluginPanel() {
     const panel = document.getElementById("plugin-panel");
     panel.style.display = panel.style.display === "none" ? "block" : "none";
@@ -54,9 +65,24 @@ function toggleDataSourcePanel() {
 }
 
 function updateSelection() {
-    const selectedVisualizer = document.querySelector('#plugin-panel input[type=radio]:checked')?.value || "simple";
-    const selectedDataSource = document.querySelector('#data-source-panel input[type=radio]:checked')?.value || "csv";
-    window.location = "/?type=" + selectedVisualizer + "&data_source=" + selectedDataSource;
+    const selectedVisualizer =
+        document.querySelector('#plugin-panel input[type=radio]:checked')?.value || "simple_visualizer";
+    const selectedDataSource =
+        document.querySelector('#data-source-panel input[type=radio]:checked')?.value || "csv";
+
+    const params = new URLSearchParams();
+    params.set("type", selectedVisualizer);
+    params.set("data_source", selectedDataSource);
+
+    if (currentWorkspaceId) {
+        params.set("workspace_id", currentWorkspaceId);
+    }
+
+    if (currentSourcePath) {
+        params.set("source_path", currentSourcePath);
+    }
+
+    window.location = "/?" + params.toString();
 }
 
 function getSelectedVisualizer() {
@@ -82,19 +108,30 @@ async function updateGraph(endpoint, payload) {
     }
 
     const result = await response.json();
+
+    if (result.visualization_model !== undefined && result.visualization_model !== null) {
+        window.currentVisualizationModel = result.visualization_model;
+        const container = document.getElementById("graph-container");
+        container.innerHTML = "";
+        if (window.renderCurrentVisualization) {
+            window.renderCurrentVisualization();
+        }
+        return;
+    }
+
     if (result.graph_html !== undefined) {
+        window.currentVisualizationModel = null;
+
         const container = document.getElementById("graph-container");
         container.innerHTML = result.graph_html;
 
-        // Scripts inside innerHTML are not executed by the browser.
-        // Re-create and re-run them sequentially, waiting for external
-        // src scripts (e.g. D3) to finish loading before inline scripts run.
         const scripts = Array.from(container.querySelectorAll("script"));
 
         function execNext(i) {
             if (i >= scripts.length) return;
             const orig = scripts[i];
             const s = document.createElement("script");
+
             if (orig.src) {
                 s.src = orig.src;
                 s.onload = () => execNext(i + 1);
@@ -105,6 +142,7 @@ async function updateGraph(endpoint, payload) {
                 document.body.appendChild(s);
                 execNext(i + 1);
             }
+
             orig.remove();
         }
 
@@ -118,6 +156,7 @@ function applyFilter() {
     const value = document.getElementById("value-input").value;
 
     updateGraph("/apply_filter", {
+        workspace_id: currentWorkspaceId,
         attribute: attribute,
         operator: operator,
         value: value,
@@ -127,8 +166,7 @@ function applyFilter() {
 
 function clearFilters() {
     updateGraph("/clear_filters", {
-        mode: "{{ selected_mode }}",
-        dataset: "{{ selected_dataset }}",
+        workspace_id: currentWorkspaceId,
         data_source: getSelectedDataSource(),
         type: getSelectedVisualizer()
     });
@@ -138,11 +176,22 @@ function applySearch() {
     const query = document.getElementById("search-input").value;
 
     updateGraph("/search", {
+        workspace_id: currentWorkspaceId,
         query: query,
         type: getSelectedVisualizer()
     });
 }
-
 </script>
 
-<div id="graph-container">{{ graph_html | safe }}</div>
+{% if visualization_model is not none %}
+<script id="current-visualization-model" type="application/json">
+{{ visualization_model | tojson | safe }}
+</script>
+{% else %}
+<script id="current-visualization-model" type="application/json">
+null
+</script>
+{% endif %}
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="{{ url_for('core_main_view_assets', filename='main_view_renderer.js') }}"></script>

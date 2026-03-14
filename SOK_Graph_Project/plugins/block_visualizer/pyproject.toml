@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sok-graph-block-visualizer"
+version = "1.0.0"
+description = "Block visualizer plugin for SOK Graph Project"
+requires-python = ">=3.10"
+dependencies = [
+    "sok-graph-api",
+    "sok-graph-core",
+]
+
+[project.entry-points."sok_graph.visualizers"]
+block_visualizer = "graph_block_visualizer.plugin_main:BlockVisualizer"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["graph_block_visualizer*"]

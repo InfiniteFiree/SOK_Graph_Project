@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sok-graph-csv-data-source"
+version = "1.0.0"
+description = "CSV data source plugin for SOK Graph Project"
+requires-python = ">=3.10"
+dependencies = [
+    "sok-graph-api",
+    "sok-graph-core",
+]
+
+[project.entry-points."sok_graph.data_sources"]
+csv = "graph_csv_source.plugin_main:CsvDataSourcePlugin"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["graph_csv_source*"]

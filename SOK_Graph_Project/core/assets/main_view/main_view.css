@@ -1,0 +1,160 @@
+.toolbar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.toolbar input,
+.toolbar select,
+.toolbar button {
+    padding: 6px 8px;
+    border: 1px solid #bbb;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.toolbar button {
+    cursor: pointer;
+    background: #f4f4f4;
+}
+
+#graph-container {
+    width: 100%;
+}
+
+.main-view-wrapper {
+    position: relative;
+    width: 100%;
+    min-height: 550px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background: #fff;
+    overflow: hidden;
+}
+
+.main-view-canvas {
+    width: 100%;
+    height: 550px;
+}
+
+.main-view-wrapper svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: grab;
+}
+
+.main-view-wrapper svg:active {
+    cursor: grabbing;
+}
+
+.main-view-wrapper .link {
+    stroke: #999;
+    stroke-opacity: 0.6;
+    stroke-width: 2px;
+}
+
+.simple-visualizer-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.25);
+    z-index: 10;
+}
+
+.simple-visualizer-modal {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(420px, 90%);
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    z-index: 11;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+}
+
+.simple-visualizer-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 14px;
+    border-bottom: 1px solid #e5e5e5;
+    background: #fafafa;
+    font-weight: bold;
+}
+
+.simple-visualizer-modal-body {
+    padding: 14px;
+    max-height: 300px;
+    overflow: auto;
+    font-size: 14px;
+}
+
+.simple-visualizer-close-btn {
+    border: none;
+    background: transparent;
+    font-size: 20px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.simple-visualizer-detail-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.simple-visualizer-detail-table td {
+    border-bottom: 1px solid #f0f0f0;
+    padding: 6px 4px;
+    vertical-align: top;
+}
+
+.simple-visualizer-detail-key {
+    font-weight: bold;
+    width: 35%;
+    white-space: nowrap;
+}
+
+.node-circle {
+    fill: #f8f8f8;
+    stroke: #444;
+    stroke-width: 2px;
+    cursor: pointer;
+}
+
+.node-circle.selected {
+    fill: #4a90e2;
+    stroke: #1f5fa8;
+    stroke-width: 3px;
+}
+
+.node-label {
+    font-size: 12px;
+    font-family: Arial, sans-serif;
+    pointer-events: none;
+    user-select: none;
+    text-anchor: middle;
+    dominant-baseline: middle;
+    fill: #111;
+}
+
+.block-node-rect {
+    fill: #4CAF50;
+}
+
+.block-node-rect.selected {
+    fill: #FF5722;
+    stroke: #1f5fa8;
+    stroke-width: 3px;
+}
+
+.block-node-text {
+    text-anchor: middle;
+    fill: white;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+}
