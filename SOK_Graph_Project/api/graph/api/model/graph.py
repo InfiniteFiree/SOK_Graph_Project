@@ -50,51 +50,51 @@ class Graph:
     def addEdge(self, edge):
         self.edges.append(self._validateEdge(edge))
 
-    def removeEdgesByNode(self, node):
-        matched_edges = [
-            edge for edge in self.edges
-            if edge.getNode1() == node or edge.getNode2() == node
-        ]
-
-        if not matched_edges:
-            raise ValueError("No edges found for the provided node")
-
-        for edge in matched_edges:
-            self.edges.remove(edge)
-
     def removeEdgeByNodes(self, node1, node2):
-        matched_edges = [
-            edge for edge in self.edges
-            if (edge.getNode1() == node1 and edge.getNode2() == node2)
-            or (edge.getNode1() == node2 and edge.getNode2() == node1)
-        ]
+        node1_id = self._getNodeId(node1)
+        node2_id = self._getNodeId(node2)
 
-        if not matched_edges:
-            raise ValueError("No edge found for the provided two nodes")
+        for idx, edge in enumerate(self.edges):
+            edge_node1_id = self._getNodeId(edge.node1)
+            edge_node2_id = self._getNodeId(edge.node2)
 
-        for edge in matched_edges:
-            self.edges.remove(edge)
+            direct_match = edge_node1_id == node1_id and edge_node2_id == node2_id
+            reverse_match = edge_node1_id == node2_id and edge_node2_id == node1_id
+
+            if direct_match or (not self.directed and reverse_match):
+                del self.edges[idx]
+                return
+
+        raise ValueError("No edge found for the provided two nodes")
 
     def removeEdge(self, edge):
-        if edge not in self.edges:
-            raise ValueError("Provided edge does not exist in graph")
+        for idx, current_edge in enumerate(self.edges):
+            if current_edge is edge:
+                del self.edges[idx]
+                return
 
-        self.edges.remove(edge)
+        raise ValueError("Provided edge does not exist in graph")
 
     def removeNode(self, node):
-        if node not in self.nodes:
+        target_index = None
+        for idx, current_node in enumerate(self.nodes):
+            if current_node is node:
+                target_index = idx
+                break
+
+        if target_index is None:
             raise ValueError("Provided node does not exist in graph")
 
         if self._isNodeConnected(node):
             raise ValueError("Cannot remove node because it has connections")
 
-        self.nodes.remove(node)
+        del self.nodes[target_index]
 
     def removeNodeByIndex(self, index):
         target_node = None
 
         for node in self.nodes:
-            if node.getIndex() == index:
+            if str(getattr(node, "index", None)) == str(index):
                 target_node = node
                 break
 
@@ -104,19 +104,30 @@ class Graph:
         if self._isNodeConnected(target_node):
             raise ValueError("Cannot remove node because it has connections")
 
-        self.nodes.remove(target_node)
+        for idx, current_node in enumerate(self.nodes):
+            if current_node is target_node:
+                del self.nodes[idx]
+                return
+
+        raise ValueError("No node found for the provided index")
 
     def _isNodeConnected(self, node):
+        node_id = self._getNodeId(node)
+
         for edge in self.edges:
-            if edge.getNode1() == node or edge.getNode2() == node:
+            edge_node1_id = self._getNodeId(edge.node1)
+            edge_node2_id = self._getNodeId(edge.node2)
+
+            if edge_node1_id == node_id or edge_node2_id == node_id:
                 return True
 
         return False
     
     def getConnectedOf(self, node):
+        node_id = self._getNodeId(node)
         matched_nodes = [
-            edge.getNode2() for edge in self.edges
-            if edge.getNode1() == node
+            edge.node2 for edge in self.edges
+            if self._getNodeId(edge.node1) == node_id
         ]
         return matched_nodes
 
@@ -155,6 +166,11 @@ class Graph:
             raise TypeError("edge must be of type Edge")
 
         return edge
+
+    def _getNodeId(self, node):
+        if node is None:
+            return None
+        return str(getattr(node, "index", None))
 
     def toDict(self):
         return {

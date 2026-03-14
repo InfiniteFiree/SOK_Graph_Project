@@ -13,7 +13,6 @@ from core.build.lib.service.use_cases.workspace import Workspace
 from core.build.lib.service.use_cases.workspace_manager import WorkspaceManager
 from core.build.lib.service.use_cases.tree_view import TreeView
 from core.build.lib.service.use_cases.bird_view import BirdView
-from core.build.lib.service.use_cases.graph_search_filter import GraphSearchFilter
 from core.build.lib.service.use_cases.plugin_recognition import PluginService
 
 app = Flask(__name__)
@@ -23,7 +22,6 @@ app.logger.setLevel(logging.INFO)
 plugin_service = PluginService()
 plugin_service.refresh_plugins()
 
-graph_search_filter = GraphSearchFilter()
 workspace_manager = WorkspaceManager()
 
 # Allow Flask to load templates both from flask/templates and core/templates
@@ -234,6 +232,19 @@ def core_main_view_assets(filename):
     return send_from_directory(assets_dir, filename)
 
 
+def resolve_visualizer(selected_visualizer):
+    visualizer = plugins["visualization"].get(selected_visualizer)
+
+    if visualizer is None:
+        if plugins["visualization"]:
+            visualizer = next(iter(plugins["visualization"].values()))
+            selected_visualizer = visualizer.identifier()
+        else:
+            return None, selected_visualizer
+
+    return visualizer, selected_visualizer
+
+
 @app.route("/workspace/create")
 def create_workspace():
     selected_data_source = request.args.get("data_source", "csv")
@@ -256,6 +267,11 @@ def create_workspace():
             selected_visualizer=selected_visualizer,
             selected_data_source=selected_data_source,
             selected_source_path=source_path,
+            load_targets=load_targets,
+            workspaces=workspace_manager.list_workspaces(),
+            active_workspace_id=active_workspace.id if active_workspace else None,
+            cli_history=active_workspace.cli.command_history if active_workspace else [],
+            cli_feedback=None,
             workspace_error=str(e),
         )
 
@@ -308,9 +324,55 @@ def index():
     )
 
 
+@app.route("/cli/execute", methods=["POST"])
+def execute_cli_command():
+    payload = request.get_json(silent=True) or {}
+    workspace_id = payload.get("workspace_id")
+    workspace = workspace_manager.get_workspace(workspace_id) if workspace_id else workspace_manager.get_active()
+
+    if workspace is None:
+        return jsonify({"error": "No active workspace"}), 400
+
+    selected_visualizer = payload.get("type", workspace.visualizer_type)
+    visualizer, selected_visualizer = resolve_visualizer(selected_visualizer)
+    if visualizer is None:
+        return jsonify({"error": "No visualization plugins loaded"}), 400
+
+    command = payload.get("command", "")
+
+    try:
+        result = workspace.cli.execute(command)
+        graph_for_view = result.get("display_graph", workspace.search_filter.filtered_graph)
+        message = result.get("message", "Command executed")
+    except ValueError as e:
+        graph_for_view = workspace.search_filter.filtered_graph
+        message = str(e)
+        response_code = 400
+    else:
+        response_code = 200
+
+    graph_html = visualizer.visualize(graph_for_view, workspace_id=workspace.id)
+    tree_view_html = TreeView(graph_for_view).render(workspace_id=workspace.id)
+    bird_view_html = BirdView().render(workspace_id=workspace.id)
+
+    return jsonify({
+        "graph_html": graph_html,
+        "tree_view_html": tree_view_html,
+        "bird_view_html": bird_view_html,
+        "cli_history": workspace.cli.command_history,
+        "cli_feedback": message,
+        "selected_visualizer": selected_visualizer,
+    }), response_code
+
+
 @app.route("/apply_filter", methods=["POST"])
 def apply_filter():
     payload = request.get_json(silent=True) or {}
+    workspace_id = payload.get("workspace_id")
+    workspace = workspace_manager.get_workspace(workspace_id) if workspace_id else workspace_manager.get_active()
+
+    if workspace is None:
+        return jsonify({"error": "No active workspace"}), 400
 
     workspace_id = payload.get("workspace_id")
     if workspace_id:
@@ -326,7 +388,7 @@ def apply_filter():
     selected_visualizer = payload.get("type", active_workspace.visualizer_type)
 
     graph_search_filter.set_source_graph(active_workspace.graph)
-    filtered_graph = graph_search_filter.filter(attribute, operator, value)
+    filtered_graph = workspace.search_filter.filter(attribute, operator, value)
 
     try:
         visualizer = plugin_service.get_plugin("visualization", selected_visualizer, active_only=True)
@@ -349,6 +411,8 @@ def apply_filter():
 @app.route("/clear_filters", methods=["POST"])
 def clear_filters():
     payload = request.get_json(silent=True) or {}
+    workspace_id = payload.get("workspace_id")
+    workspace = workspace_manager.get_workspace(workspace_id) if workspace_id else workspace_manager.get_active()
 
     workspace_id = payload.get("workspace_id")
     if workspace_id:
@@ -360,7 +424,14 @@ def clear_filters():
 
     selected_visualizer = payload.get("type", active_workspace.visualizer_type)
 
-    filtered_graph = graph_search_filter.clear_filters(active_workspace.graph)
+    fresh_graph = plugin_service.load_graph_from_selected_source(
+        plugins=plugins,
+        selected_data_source=workspace.data_source,
+        source_path=workspace.source_path,
+        project_root=project_root
+    )
+    workspace.graph = fresh_graph
+    filtered_graph = workspace.search_filter.clear_filters(fresh_graph)
 
     try:
         visualizer = plugin_service.get_plugin("visualization", selected_visualizer, active_only=True)
@@ -383,6 +454,11 @@ def clear_filters():
 @app.route("/search", methods=["POST"])
 def search_graph():
     payload = request.get_json(silent=True) or {}
+    workspace_id = payload.get("workspace_id")
+    workspace = workspace_manager.get_workspace(workspace_id) if workspace_id else workspace_manager.get_active()
+
+    if workspace is None:
+        return jsonify({"error": "No active workspace"}), 400
 
     workspace_id = payload.get("workspace_id")
     if workspace_id:
@@ -395,8 +471,7 @@ def search_graph():
     query = payload.get("query", "")
     selected_visualizer = payload.get("type", active_workspace.visualizer_type)
 
-    graph_search_filter.set_source_graph(active_workspace.graph)
-    result_graph = graph_search_filter.search(query)
+    result_graph = workspace.search_filter.search(query)
 
     try:
         visualizer = plugin_service.get_plugin("visualization", selected_visualizer, active_only=True)

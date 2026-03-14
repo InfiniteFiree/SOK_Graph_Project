@@ -185,3 +185,24 @@ dependencies = [
 where = ["."]
 include = ["my_visualizer_plugin*"]
 ```
+
+## CLI Commands:
+
+### Node:
+```shell
+create_node id={int} attr1={int,float,date,str} attr2=...
+edit_node id={int} attr1={int,float,date,str} attr2=...
+delete_node id={int}
+```
+
+### Edge:
+```shell
+create_edge n1={int} n2={int}
+delete_edge n1={int} n2={int}
+```
+
+### Search and Filter:
+```shell
+search {int,float,date,str}
+filter attr={int,float,date,str}
+```

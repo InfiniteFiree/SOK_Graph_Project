@@ -93,6 +93,10 @@ function getSelectedDataSource() {
     return document.querySelector('#data-source-panel input[type=radio]:checked')?.value || "csv";
 }
 
+function getActiveWorkspaceId() {
+    return "{{ active_workspace_id }}";
+}
+
 async function updateGraph(endpoint, payload) {
     const response = await fetch(endpoint, {
         method: "POST",
@@ -160,7 +164,8 @@ function applyFilter() {
         attribute: attribute,
         operator: operator,
         value: value,
-        type: getSelectedVisualizer()
+        type: getSelectedVisualizer(),
+        workspace_id: getActiveWorkspaceId()
     });
 }
 
@@ -168,7 +173,8 @@ function clearFilters() {
     updateGraph("/clear_filters", {
         workspace_id: currentWorkspaceId,
         data_source: getSelectedDataSource(),
-        type: getSelectedVisualizer()
+        type: getSelectedVisualizer(),
+        workspace_id: getActiveWorkspaceId()
     });
 }
 
@@ -178,7 +184,8 @@ function applySearch() {
     updateGraph("/search", {
         workspace_id: currentWorkspaceId,
         query: query,
-        type: getSelectedVisualizer()
+        type: getSelectedVisualizer(),
+        workspace_id: getActiveWorkspaceId()
     });
 }
 </script>
