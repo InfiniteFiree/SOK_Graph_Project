@@ -4,8 +4,8 @@ import re
 import shlex
 from typing import TYPE_CHECKING
 
-from api.graph.api.model.edge import Edge
-from api.graph.api.model.node import Node
+from graph.api.model.edge import Edge
+from graph.api.model.node import Node
 
 if TYPE_CHECKING:
 	from core.service.use_cases.workspace import Workspace

@@ -114,10 +114,18 @@ async function executeCliCommand() {
     renderCliHistory(result.cli_history || []);
     setCliFeedback(result.cli_feedback || "Command processed", !response.ok);
 
-    if (result.graph_html !== undefined) {
-        const graphContainer = document.getElementById("graph-container");
-        graphContainer.innerHTML = result.graph_html;
-        renderScriptsInContainer(graphContainer);
+    if (result.visualization_model !== undefined && result.visualization_model !== null) {
+        window.currentVisualizationModel = result.visualization_model;
+
+        if (typeof renderVisualizationModel === "function") {
+            renderVisualizationModel(result.visualization_model);
+        } else if (typeof renderMainVisualization === "function") {
+            renderMainVisualization(result.visualization_model);
+        } else if (typeof initializeMainView === "function") {
+            initializeMainView(result.visualization_model);
+        } else {
+            console.error("No visualization render function found for CLI update.");
+        }
     }
 
     if (result.tree_view_html !== undefined) {
@@ -134,6 +142,10 @@ async function executeCliCommand() {
 
     commandInput.value = "";
     commandInput.focus();
+
+    setTimeout(() => {
+        window.location.reload();
+    }, 50);
 }
 
 document.addEventListener("DOMContentLoaded", function() {

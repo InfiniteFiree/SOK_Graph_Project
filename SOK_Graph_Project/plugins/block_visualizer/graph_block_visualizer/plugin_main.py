@@ -1,6 +1,6 @@
-from api.build.lib.graph.api.services.plugin import VisualizationPlugin
-from api.build.lib.graph.api.model.graph import Graph
-from core.build.lib.service.use_cases.main_view import MainView
+from graph.api.services.plugin import VisualizationPlugin
+from graph.api.model.graph import Graph
+from service.use_cases.main_view import MainView
 
 
 class BlockVisualizer(VisualizationPlugin):

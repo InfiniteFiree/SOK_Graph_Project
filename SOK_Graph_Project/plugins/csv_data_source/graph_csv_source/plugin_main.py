@@ -1,8 +1,8 @@
 import csv
 import os
 
-from api.build.lib.graph.api.services.plugin import DataSourcePlugin
-from core.build.lib.service.use_cases.data_source_service import DataSourceService
+from graph.api.services.plugin import DataSourcePlugin
+from service.use_cases.data_source_service import DataSourceService
 
 
 class CsvDataSourcePlugin(DataSourcePlugin):

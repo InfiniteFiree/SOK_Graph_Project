@@ -3,7 +3,7 @@ from importlib.metadata import entry_points
 from typing import Dict, Optional
 import os
 
-from api.build.lib.graph.api.services.plugin import (
+from graph.api.services.plugin import (
     Plugin,
     DataSourcePlugin,
     VisualizationPlugin,

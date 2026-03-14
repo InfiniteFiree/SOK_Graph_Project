@@ -1,19 +1,19 @@
-import sys
 import os
+import sys
 import logging
 import subprocess
 
 from jinja2 import ChoiceLoader, FileSystemLoader
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
-from core.build.lib.service.use_cases.workspace import Workspace
-from core.build.lib.service.use_cases.workspace_manager import WorkspaceManager
-from core.build.lib.service.use_cases.tree_view import TreeView
-from core.build.lib.service.use_cases.bird_view import BirdView
-from core.build.lib.service.use_cases.plugin_recognition import PluginService
+from service.use_cases.workspace import Workspace
+from service.use_cases.workspace_manager import WorkspaceManager
+from service.use_cases.tree_view import TreeView
+from service.use_cases.bird_view import BirdView
+from service.use_cases.plugin_recognition import PluginService
+
 
 app = Flask(__name__)
 app.config["APP_NAME"] = "Graph Visualizer"
@@ -49,12 +49,29 @@ def build_visualization_model(visualizer, graph, workspace_id):
     return visualizer.visualize(graph, workspace_id=workspace_id)
 
 
+def resolve_visualizer(selected_visualizer):
+    active_plugins = plugin_service.get_active_plugins()
+    visualizers = active_plugins["visualization"]
+
+    visualizer = visualizers.get(selected_visualizer)
+
+    if visualizer is None:
+        if visualizers:
+            visualizer = next(iter(visualizers.values()))
+            selected_visualizer = visualizer.identifier()
+        else:
+            return None, selected_visualizer
+
+    return visualizer, selected_visualizer
+
+
 def render_index(
     active_workspace=None,
     selected_visualizer="simple_visualizer",
     selected_data_source="csv",
     selected_source_path="",
     workspace_error=None,
+    cli_feedback=None,
 ):
     active_plugins = get_active_plugins()
     plugin_summary = get_plugin_summary()
@@ -78,12 +95,15 @@ def render_index(
             workspaces=workspace_manager.list_workspaces(),
             active_workspace_id=None,
             workspace_error=workspace_error,
+            cli_history=[],
+            cli_feedback=cli_feedback,
             no_workspace=True,
         )
 
     graph = active_workspace.graph
-    graph_search_filter.set_source_graph(graph)
-    app.config["GRAPH"] = graph_search_filter.filtered_graph
+    workspace_filter = active_workspace.search_filter
+    workspace_filter.set_source_graph(graph)
+    app.config["GRAPH"] = workspace_filter.filtered_graph
 
     selected_visualizer = active_workspace.visualizer_type
     selected_data_source = active_workspace.data_source
@@ -118,19 +138,21 @@ def render_index(
                 workspaces=workspace_manager.list_workspaces(),
                 active_workspace_id=active_workspace.id,
                 workspace_error="No visualization plugins are available.",
+                cli_history=active_workspace.cli.command_history,
+                cli_feedback=cli_feedback,
                 no_workspace=False,
             )
 
     visualization_model = build_visualization_model(
         visualizer,
-        graph_search_filter.filtered_graph,
+        workspace_filter.filtered_graph,
         active_workspace.id
     )
 
     bird_view = BirdView()
     bird_view_html = bird_view.render(workspace_id=active_workspace.id)
 
-    tree_view = TreeView(graph_search_filter.filtered_graph)
+    tree_view = TreeView(workspace_filter.filtered_graph)
     tree_view_html = tree_view.render(workspace_id=active_workspace.id)
 
     return render_template(
@@ -150,6 +172,8 @@ def render_index(
         workspaces=workspace_manager.list_workspaces(),
         active_workspace_id=active_workspace.id,
         workspace_error=workspace_error,
+        cli_history=active_workspace.cli.command_history,
+        cli_feedback=cli_feedback,
         no_workspace=False,
     )
 
@@ -232,19 +256,6 @@ def core_main_view_assets(filename):
     return send_from_directory(assets_dir, filename)
 
 
-def resolve_visualizer(selected_visualizer):
-    visualizer = plugins["visualization"].get(selected_visualizer)
-
-    if visualizer is None:
-        if plugins["visualization"]:
-            visualizer = next(iter(plugins["visualization"].values()))
-            selected_visualizer = visualizer.identifier()
-        else:
-            return None, selected_visualizer
-
-    return visualizer, selected_visualizer
-
-
 @app.route("/workspace/create")
 def create_workspace():
     selected_data_source = request.args.get("data_source", "csv")
@@ -267,11 +278,6 @@ def create_workspace():
             selected_visualizer=selected_visualizer,
             selected_data_source=selected_data_source,
             selected_source_path=source_path,
-            load_targets=load_targets,
-            workspaces=workspace_manager.list_workspaces(),
-            active_workspace_id=active_workspace.id if active_workspace else None,
-            cli_history=active_workspace.cli.command_history if active_workspace else [],
-            cli_feedback=None,
             workspace_error=str(e),
         )
 
@@ -351,12 +357,17 @@ def execute_cli_command():
     else:
         response_code = 200
 
-    graph_html = visualizer.visualize(graph_for_view, workspace_id=workspace.id)
+    visualization_model = build_visualization_model(
+        visualizer,
+        graph_for_view,
+        workspace.id
+    )
     tree_view_html = TreeView(graph_for_view).render(workspace_id=workspace.id)
     bird_view_html = BirdView().render(workspace_id=workspace.id)
 
     return jsonify({
-        "graph_html": graph_html,
+        "graph_html": "",
+        "visualization_model": visualization_model,
         "tree_view_html": tree_view_html,
         "bird_view_html": bird_view_html,
         "cli_history": workspace.cli.command_history,
@@ -374,20 +385,11 @@ def apply_filter():
     if workspace is None:
         return jsonify({"error": "No active workspace"}), 400
 
-    workspace_id = payload.get("workspace_id")
-    if workspace_id:
-        workspace_manager.set_active(workspace_id)
-
-    active_workspace = workspace_manager.get_active()
-    if active_workspace is None:
-        return jsonify({"error": "No active workspace"}), 400
-
     attribute = payload.get("attribute", "")
     operator = payload.get("operator", "=")
     value = payload.get("value", "")
-    selected_visualizer = payload.get("type", active_workspace.visualizer_type)
+    selected_visualizer = payload.get("type", workspace.visualizer_type)
 
-    graph_search_filter.set_source_graph(active_workspace.graph)
     filtered_graph = workspace.search_filter.filter(attribute, operator, value)
 
     try:
@@ -399,7 +401,7 @@ def apply_filter():
     visualization_model = build_visualization_model(
         visualizer,
         filtered_graph,
-        active_workspace.id
+        workspace.id
     )
 
     return jsonify({
@@ -414,23 +416,18 @@ def clear_filters():
     workspace_id = payload.get("workspace_id")
     workspace = workspace_manager.get_workspace(workspace_id) if workspace_id else workspace_manager.get_active()
 
-    workspace_id = payload.get("workspace_id")
-    if workspace_id:
-        workspace_manager.set_active(workspace_id)
-
-    active_workspace = workspace_manager.get_active()
-    if active_workspace is None:
+    if workspace is None:
         return jsonify({"error": "No active workspace"}), 400
 
-    selected_visualizer = payload.get("type", active_workspace.visualizer_type)
+    selected_visualizer = payload.get("type", workspace.visualizer_type)
 
     fresh_graph = plugin_service.load_graph_from_selected_source(
-        plugins=plugins,
         selected_data_source=workspace.data_source,
         source_path=workspace.source_path,
         project_root=project_root
     )
     workspace.graph = fresh_graph
+    workspace.search_filter.set_source_graph(fresh_graph)
     filtered_graph = workspace.search_filter.clear_filters(fresh_graph)
 
     try:
@@ -442,7 +439,7 @@ def clear_filters():
     visualization_model = build_visualization_model(
         visualizer,
         filtered_graph,
-        active_workspace.id
+        workspace.id
     )
 
     return jsonify({
@@ -460,16 +457,8 @@ def search_graph():
     if workspace is None:
         return jsonify({"error": "No active workspace"}), 400
 
-    workspace_id = payload.get("workspace_id")
-    if workspace_id:
-        workspace_manager.set_active(workspace_id)
-
-    active_workspace = workspace_manager.get_active()
-    if active_workspace is None:
-        return jsonify({"error": "No active workspace"}), 400
-
     query = payload.get("query", "")
-    selected_visualizer = payload.get("type", active_workspace.visualizer_type)
+    selected_visualizer = payload.get("type", workspace.visualizer_type)
 
     result_graph = workspace.search_filter.search(query)
 
@@ -481,7 +470,7 @@ def search_graph():
     visualization_model = build_visualization_model(
         visualizer,
         result_graph,
-        active_workspace.id
+        workspace.id
     )
 
     return jsonify({

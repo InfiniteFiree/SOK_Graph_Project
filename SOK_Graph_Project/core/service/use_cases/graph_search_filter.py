@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from api.build.lib.graph.api.model.graph import Graph
+from graph.api.model.graph import Graph
 
 
 class GraphSearchFilter:

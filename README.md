@@ -28,11 +28,13 @@ python -m venv venv
 pip install -r requirements.txt
 ```
 
-### and then:
+### in the root of the project, and then:
 
 ```shell
 pip install ./api ./core ./plugins/simple_visualizer ./plugins/block_visualizer ./plugins/csv_data_source ./plugins/json_data_source
 ```
+
+### in the SOK_Graph_Project folder.
 
 ### - In case that this is the first time running the app, use:
 

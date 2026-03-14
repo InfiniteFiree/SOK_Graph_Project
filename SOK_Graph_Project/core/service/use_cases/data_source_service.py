@@ -2,9 +2,9 @@ import json
 import os
 from collections import defaultdict
 
-from api.build.lib.graph.api.model.node import Node
-from api.build.lib.graph.api.model.edge import Edge
-from api.build.lib.graph.api.model.graph import Graph
+from graph.api.model.node import Node
+from graph.api.model.edge import Edge
+from graph.api.model.graph import Graph
 
 
 class DataSourceService:

@@ -1,6 +1,6 @@
 from abc import abstractmethod, ABC
 
-from api.graph.api.model.graph import Graph
+from graph.api.model.graph import Graph
 
 
 class Plugin(ABC):
