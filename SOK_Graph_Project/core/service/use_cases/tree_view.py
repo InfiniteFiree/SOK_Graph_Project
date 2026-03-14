@@ -182,6 +182,7 @@ class TreeView:
         <style>
             .tree-view-root {{
                 width: 100%;
+                max-height: 750px;
                 font-family: Arial, sans-serif;
                 font-size: 14px;
                 color: #222;
